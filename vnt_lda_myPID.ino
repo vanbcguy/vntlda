@@ -1,3 +1,10 @@
+/* 
+VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
+- Rewritten PID loop
+- Support added for EGT probe with LDA control based on EGTs
+- Support for EMP sensor to display EMP values (no control map yet)
+- Other various small changes
+*/
 
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
