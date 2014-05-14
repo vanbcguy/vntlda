@@ -48,6 +48,10 @@ is based on the Arduino PID lib that I tried earlier with poor results
 #define MAP_SCALING_KPA 0.977 
 #define EMP_SCALING_KPA 1.953 
 
+/* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
+or if you need to have large multipliers then decrease this */
+#define PIDControlRatio 50
+
 void readValuesMap();
 void updateOutputValues(bool showDebug);
 void pageAbout(char key);
@@ -276,9 +280,9 @@ struct controlsStruct {
   char output2Enabled;
   unsigned char auxOutput;
 
-  int boostCalculatedP;
-  int boostCalculatedI;
-  int boostCalculatedD;
+  float boostCalculatedP;
+  float boostCalculatedI;
+  float boostCalculatedD;
 
   float pidOutput;
   float prevPidOutput;
@@ -1604,7 +1608,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKp,3,'0');
   Serial.print(" P (");
-  Serial.print(controls.boostCalculatedP);
+  Serial.print(controls.boostCalculatedP*(settings.boostKp/PIDControlRatio));
   Serial.print(")");      
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1612,7 +1616,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKi,3,'0');
   Serial.print(" I (");
-  Serial.print(controls.boostCalculatedI);      
+  Serial.print(controls.boostCalculatedI*(settings.boostKi/PIDControlRatio));      
   Serial.print(")");            
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1621,7 +1625,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKd,3,'0');
   Serial.print(" D (");
-  Serial.print(controls.boostCalculatedD);      
+  Serial.print(controls.boostCalculatedD*(settings.boostKd/PIDControlRatio));      
   Serial.print(")");            
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1740,9 +1744,9 @@ void processValues() {
 
   float toControlVNT;
 
-  Kp = (float)(settings.boostKp)/50;
-  Ki = (float)(settings.boostKi)/50;
-  Kd = (float)(settings.boostKd)/50;  
+  Kp = (float)(settings.boostKp)/PIDControlRatio;
+  Ki = (float)(settings.boostKi)/PIDControlRatio;
+  Kd = (float)(settings.boostKd)/PIDControlRatio;  
 
   /* This is the available span of our DC - we can only go between min and max */
   controlSpan = controls.vntMaxDc - controls.vntMinDc;
@@ -1827,14 +1831,10 @@ void processValues() {
     integral = 0;
   }
 
-  /* Yes this doesn't really need another whole set of variables, but here we are */
-  p = (Kp* error) * 100;
-  i = (Ki * integral) * 100;
-  d = (Kd *derivate) * 100;
-
-  controls.boostCalculatedP=(int)p;
-  controls.boostCalculatedI=(int)i;
-  controls.boostCalculatedD=(int)d;
+  /* Display these as real numbers - will make the logs more useful as we can try different values */
+  controls.boostCalculatedP=(error);
+  controls.boostCalculatedI=(integral);
+  controls.boostCalculatedD=(derivate);
 
   unsigned char finalPos;
   finalPos = controls.vntPositionDC;
