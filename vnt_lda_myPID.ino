@@ -4,6 +4,9 @@ VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.ku
 - Support added for EGT probe with LDA control based on EGTs
 - Support for EMP sensor to display EMP values (no control map yet)
 - Other various small changes
+
+PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
+is based on the Arduino PID lib that I tried earlier with poor results
 */
 
 #include <avr/pgmspace.h>
@@ -1792,7 +1795,11 @@ void processValues() {
     error = (error * (float)settings.boostBias) / 10; 
   }
 
+  /* PID Method #1 */
   controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
+  
+  /* PID Method #2 */
+  //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
@@ -1873,22 +1880,6 @@ char* kpaToBar(unsigned int kpa) {
 }
 
 
-/*void initLcd() {
- lcd.begin(20, 4);
- 
- lcd.clear();
- lcd.setCursor(0,0);
- //         1234567890123456790
- 
- lcd.print("0000 RPM  Act:0.00 B");
- lcd.setCursor(0,1);
- lcd.print("Mode:0    Req:0.00 B");
- lcd.setCursor(0,2);
- lcd.print("Temp1:    C       ON");
- lcd.setCursor(0,3);  
- lcd.print("Temp2:    C      OFF");
- }*/
-
 void lcdPrintIntWithPadding(int val,unsigned char width,char padChar) {
   // print enough leading zeroes!
   memset(buffer,padChar,30);
@@ -1897,41 +1888,6 @@ void lcdPrintIntWithPadding(int val,unsigned char width,char padChar) {
   // print string with given width
   lcd.print(buffer+30+strlen(buffer+30)-width);
 }
-
-/* Orignal LCD code 
- void updateLCD() {
- 
- #ifdef LCD_FORCE_INIT
- static unsigned char printCount;
- 
- if (++printCount % 128 == 0) {
- initLcd();
- 
- }
- #endif
- lcd.setCursor(0,0);
- lcdPrintIntWithPadding(controls.rpmActual,4,' ');
- 
- lcd.setCursor(14,0);
- lcd.print(kpaToBar(toKpaMAP(controls.mapCorrected)));  
- lcd.setCursor(14,1);
- lcd.print(kpaToBar(toKpaMAP(controls.vntTargetPressure)));  
- 
- lcd.setCursor(5,1);  
- 
- lcdPrintIntWithPadding(controls.mode,1,' ');
- 
- lcd.setCursor(7,2);  
- lcdPrintIntWithPadding(controls.temp1,3,' ');
- lcd.setCursor(17,2);  
- lcd.print(controls.output1Enabled?" ON":"OFF");
- 
- lcd.setCursor(7,3);  
- lcdPrintIntWithPadding(controls.temp2,3,' ');
- lcd.setCursor(17,3);  
- lcd.print(controls.output2Enabled?" ON":"OFF");
- 
- } */
 
 void updateLCD() { 
   position_lcd(3,0);
