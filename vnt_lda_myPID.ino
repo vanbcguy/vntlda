@@ -1608,7 +1608,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKp,3,'0');
   Serial.print(" P (");
-  Serial.print(controls.boostCalculatedP*(settings.boostKp/PIDControlRatio));
+  Serial.print(controls.boostCalculatedP*(100*settings.boostKp/PIDControlRatio));
   Serial.print(")");      
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1616,7 +1616,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKi,3,'0');
   Serial.print(" I (");
-  Serial.print(controls.boostCalculatedI*(settings.boostKi/PIDControlRatio));      
+  Serial.print(controls.boostCalculatedI*(100*settings.boostKi/PIDControlRatio));      
   Serial.print(")");            
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1800,10 +1800,10 @@ void processValues() {
   }
 
   /* PID Method #1 */
-  controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
+  //controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
   
   /* PID Method #2 */
-  //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
+  controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
