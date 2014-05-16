@@ -1,13 +1,13 @@
 /* 
-VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
-- Rewritten PID loop
-- Support added for EGT probe with LDA control based on EGTs
-- Support for EMP sensor to display EMP values (no control map yet)
-- Other various small changes
-
-PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
-is based on the Arduino PID lib that I tried earlier with poor results
-*/
+ VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
+ - Rewritten PID loop
+ - Support added for EGT probe with LDA control based on EGTs
+ - Support for EMP sensor to display EMP values (no control map yet)
+ - Other various small changes
+ 
+ PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
+ is based on the Arduino PID lib that I tried earlier with poor results
+ */
 
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
@@ -49,7 +49,7 @@ is based on the Arduino PID lib that I tried earlier with poor results
 #define EMP_SCALING_KPA 1.953 
 
 /* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
-or if you need to have large multipliers then decrease this */
+ or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
 
 void readValuesMap();
@@ -268,6 +268,10 @@ struct controlsStruct {
   unsigned char tpsCorrected;
   volatile int mapInput;
   unsigned char mapCorrected;
+  volatile int egtInput;
+  unsigned char egtCorrected;
+  volatile int empInput;
+  unsigned char empCorrected;
   char mode; // operating mode
 
     // outputs
@@ -596,6 +600,7 @@ void loadDefaults() {
   settings.mapMax = 1023;
   settings.empMax = 1023;
   settings.egtMax = EGT_ALARM;
+  settings.egtMin = 0;
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.controlMethod = METHOD_PID;
@@ -1680,6 +1685,19 @@ void readValues() {
   if (tpsAvg.pos>=tpsAvg.size)
     tpsAvg.pos=0;
   tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
+
+  egtAvg.pos++;
+  if (egtAvg.pos>=egtAvg.size)
+    egtAvg.pos=0;
+  if (controls.temp1<=0) {
+    egtAvg.avgData[egtAvg.pos] = 0;
+  } 
+  else if (controls.temp1 >= settings.egtMax) {
+    egtAvg.avgData[egtAvg.pos] = settings.egtMax;
+  } 
+  else {
+    egtAvg.avgData[egtAvg.pos] = controls.temp1;
+  } 
 }
 
 void readValuesMap() {
@@ -1720,13 +1738,19 @@ void processValues() {
 
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
-  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.temp1);
+
 
   controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
   controls.mapInput = getFilteredAvarage(&mapAvg);
   controls.mapCorrected = mapValues(controls.mapInput,settings.mapMin,settings.mapMax);
   controls.tpsInput = getFilteredAvarage(&tpsAvg);
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
+  controls.empInput = getFilteredAvarage(&empAvg);
+  controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
+  controls.egtInput = getFilteredAvarage(&egtAvg);
+  controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
+
+  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 
   // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
@@ -1811,7 +1835,7 @@ void processValues() {
 
   /* PID Method #1 */
   //controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
-  
+
   /* PID Method #2 */
   controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
@@ -2126,6 +2150,7 @@ void loop() {
   testsig = !testsig;
   digitalWrite(PIN_TESTSIG,(testsig?HIGH:LOW));  
 }
+
 
 
 
