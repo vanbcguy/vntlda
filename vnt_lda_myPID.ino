@@ -1258,6 +1258,94 @@ void pageOutputTests(char key) {
   }
 }
 
+prog_uchar exportConf[] PROGMEM = "Configuration dump:";
+prog_uchar exportVntMap[] PROGMEM = "VNT Map dump:";
+prog_uchar exportLdaMap[] PROGMEM = "LDA Map dump:";
+prog_uchar exportBoostDCMax[] PROGMEM = "VNT Max DC Map dump:";
+prog_uchar exportBoostDCMin[] PROGMEM = "VNT Min DC Map dump:";
+
+void pageExport(char key) {
+    if (key) {
+        pageHeader();
+        printFromFlash(exportConf);
+        printFromFlash(ANSIclearEolAndLf);
+        Serial.print("!AA");
+        for (int i=0;i<sizeof(settingsStruct);i++) {
+            if (i%32 == 31) 
+                printFromFlash(ANSIclearEolAndLf);
+            unsigned char v = (unsigned char)*(i+((unsigned char*)&settings));
+            if (v<16)
+                Serial.print("0");
+            Serial.print(v,HEX);
+        }
+        Serial.print("!");
+        printFromFlash(ANSIclearEolAndLf);
+        printFromFlash(ANSIclearEolAndLf);
+        
+        printFromFlash(exportVntMap);
+        printFromFlash(ANSIclearEolAndLf);
+        Serial.print("!AA");
+        for (int i=0;i<sizeof(boostRequest1);i++) {
+            if (i && i%16 == 0) 
+                printFromFlash(ANSIclearEolAndLf);
+            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostRequest1));
+            if (v<16)
+                Serial.print("0");
+            Serial.print(v,HEX);
+        }
+        Serial.print("!");
+        printFromFlash(ANSIclearEolAndLf);
+        printFromFlash(ANSIclearEolAndLf);
+        
+        printFromFlash(exportBoostDCMax);
+        printFromFlash(ANSIclearEolAndLf);
+        Serial.print("!AB");
+        for (int i=0;i<sizeof(boostDCMax1);i++) {
+            if (i && i%16 == 0) 
+                printFromFlash(ANSIclearEolAndLf);
+            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMax1));
+            if (v<16)
+                Serial.print("0");
+            Serial.print(v,HEX);
+        }
+        Serial.print("!");
+        printFromFlash(ANSIclearEolAndLf);
+        printFromFlash(ANSIclearEolAndLf);
+        
+        printFromFlash(exportBoostDCMin);
+        printFromFlash(ANSIclearEolAndLf);
+        Serial.print("!AC");
+        for (int i=0;i<sizeof(boostDCMin1);i++) {
+            if (i && i%16 == 0) 
+                printFromFlash(ANSIclearEolAndLf);
+            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMin1));
+            if (v<16)
+                Serial.print("0");
+            Serial.print(v,HEX);
+        }
+        Serial.print("!");
+        printFromFlash(ANSIclearEolAndLf);
+        printFromFlash(ANSIclearEolAndLf);       
+        
+        printFromFlash(exportLdaMap);
+        printFromFlash(ANSIclearEolAndLf);
+        Serial.print("!AD");
+        for (int i=0;i<sizeof(auxMap1);i++) {
+            if (i && i%16 == 0) 
+                printFromFlash(ANSIclearEolAndLf);
+            unsigned char v = (unsigned char)*(i+((unsigned char*)&auxMap1));
+            if (v<16)
+                Serial.print("0");
+            Serial.print(v,HEX);
+        }
+        Serial.print("!");
+        
+        printFromFlash(ANSIclearEolAndLf);
+        
+        printFromFlash(ANSIclearEos);	
+    }
+}
+
 unsigned char i;
 
 void pageDataLogger(char key) {
@@ -2055,6 +2143,9 @@ void displayPage(char page,char data) {
   case 8:
     pageOutputTests(data);
     visualizeActuator(28);
+    break;
+  case 9:
+    pageExport(data);
     break;
   case 10:
     pageDataLogger(data);
