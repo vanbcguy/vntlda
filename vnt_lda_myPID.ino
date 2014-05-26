@@ -1216,12 +1216,14 @@ void pageOutputTests(char key) {
                        controls.vntPositionRemapped<255;
                        controls.vntPositionRemapped++) {
           updateOutputValues(true);
+          updateLCD();
         delay(20);
       }
       for (controls.vntPositionRemapped = 255;
                        controls.vntPositionRemapped>0;
                        controls.vntPositionRemapped--) {
           updateOutputValues(true);
+          updateLCD();
         delay(20);
       }				
       break;
@@ -2052,6 +2054,7 @@ void displayPage(char page,char data) {
     break;            			
   case 8:
     pageOutputTests(data);
+    visualizeActuator(28);
     break;
   case 10:
     pageDataLogger(data);
