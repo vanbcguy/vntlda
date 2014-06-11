@@ -538,7 +538,7 @@ void setup() {
   /*  pinMode(PIN_TEMP1,INPUT); */
   pinMode(PIN_TEMP2,INPUT);
 
-  digitalWrite(PIN_TPS,LOW); // safety unconnected TPS
+  digitalWrite(PIN_TPS,HIGH); // safety unconnected TPS
   digitalWrite(PIN_MAP,HIGH); // safety unconnected MAP
 
   // clear screen
