@@ -1,0 +1,37 @@
+vntlda
+======
+
+VNT LDA Controller
+
+This software is designed to let you build yourself a VNT controller using an Arduino.  At a minimum you can run this with just a pressure sensor or just a TPS sensor plus an RPM signal, though for actual closed loop control you need all three.  The software will also work with an EGT sensor and can control a second solenoid / device - this can be used to reduce the pressure seen by the LDA when you hit high EGTs thereby reducing fuel, or it could be used to control a water/methanol injector or really do anything you might be able to think of.
+
+Suggested Pressure Sensors
+==========================
+
+The included board design is intended to be used with Freescale MPX-series pressure sensors.  Depending on what you want to do you can use either absolute or relative / gauge pressure sensors.  Modern vehicle controls almost universally use absolute pressure sensors - this results in higher gauge pressure numbers at high altitudes providing consistent performance, however that assumes the ECU is controlling other things like fueling too.  I personally have used relative pressure sensors - they will read '0' when off boost just like a traditional boost gauge would.  This is also how wastegate turbos work.  Given that you are building your own controller I'm guessing you aren't trying to comply with strict emissions control regulations so you'll probably find the relative sensors work just fine, plus you'll probably enjoy having all the potential power your vehicle could have at lower altitudes.
+
+Here are some example sensors:
+
+MPX4250DP - 2 port sensor (leave the bottom port open) - max pressure 36 PSI
+MPX5500DP - 2 port sensor (leave the bottom port open) - max pressure 72 PSI
+
+Use the lowest value sensor that will meet your needs - don't be tempted to just go for the
+"biggest" you can get as the larger the range of the sensor the lower its resolution. I have
+used the MPX4250DP for my boost measurements and the MPX5500DP for my EMP measurements.
+
+Suggested TPS Sensor
+====================
+
+You need "something" that will provide varying resistance as the accelerator pedal moves.  If you are using this with a Bosch VE/VP style pump there are a few options available.  Some Dodge trucks with Cummins engines and automatic transmissions have a TPS sensor mounted to the pump already - if you control the automatic transmission some other way (like a knob on the dash) then you can use the TPS for this controller.  There are also Land Rover 300 TDI pumps that came with a Bosch TPS to control their EGR system - these should bolt on to most other VE pumps as well.  If you have a 300 TDI with the EGR otherwise removed then you are already most of the way there!  If you have a different style pump then you are on your own - I recommend finding a "cheap" TPS at a parts store that you think you can work with as that way getting replacement parts will be easy.  The Land Rover TPS is frigging expensive to buy new!
+
+Suggested RPM Sensor
+====================
+
+The project I based this off of was designed to work with a Honeywell GT101DC.  I used the factory crank position sensor on my VW AHU TDI, this required me to add an extra IC to work with magnetic reluctance sensors.  You can re-use the board design with the Honeywell sensor just by not installing a few components, namely the TI IC and its associated resistors.  Then the Honeywell wire can be connected to the appropriate hole on the board, probably.
+
+Suggested Boost Control Solenoids
+=================================
+
+I used the readily avaiable GM 3-port boost control solenoids - AC Delco part number 214-474.  They seem to work fine though they are a bit noisy - take care where you mount them (ie don't screw them to the firewall as the noise will drive you nuts).  The software is currently configured to work with sensors that expect about a 60 Hz PWM signal
+
+
