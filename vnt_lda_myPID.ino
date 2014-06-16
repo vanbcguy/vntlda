@@ -811,9 +811,6 @@ bool loadFromEEPROM(bool force) {
   return true;
 }
 
-int toKpa(int raw) {
-  return raw*1.18; // defaults for 3bar map
-}
 
 int toKpaMAP(int raw) {
   return raw*MAP_SCALING_KPA;
@@ -1979,40 +1976,6 @@ void updateOutputValues(bool showDebug) {
   analogWrite(PIN_AUX_N75,controls.auxOutput);    
   digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);
   digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW);
-}
-
-char barBuffer[4];
-char* kpaToBar(unsigned int kpa) {
-  memcpy(barBuffer,"0.00",4);
-  if (kpa<10) {
-    // 0.0x
-    itoa(kpa,barBuffer+3,10);
-  } 
-  else if (kpa<100) {
-    // 0.xx
-    itoa(kpa,barBuffer+2,10);
-  } 
-  else if (kpa<1000) {
-    // x.xx
-    itoa(kpa,barBuffer+1,10);
-    barBuffer[0]=barBuffer[1];
-    barBuffer[1]='.';
-  } 
-  else {
-    // -.--
-    barBuffer[0]='?';
-  }
-  return barBuffer;
-}
-
-
-void lcdPrintIntWithPadding(int val,unsigned char width,char padChar) {
-  // print enough leading zeroes!
-  memset(buffer,padChar,30);
-  // append string presentation of number to end
-  itoa(val,buffer+30,10);
-  // print string with given width
-  lcd.print(buffer+30+strlen(buffer+30)-width);
 }
 
 void updateLCD() { 
