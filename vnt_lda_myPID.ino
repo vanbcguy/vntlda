@@ -65,7 +65,7 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 4 
+#define AVG_MAX 7 
 
 #define STATUS_IDLE 1
 #define STATUS_CRUISING 2
@@ -1948,8 +1948,10 @@ void processValues() {
   if (controls.vntPositionDC>controls.vntMaxDc)
     controls.vntPositionDC=controls.vntMaxDc;
 
-  if ((settings.options & OPTIONS_VANESOPENIDLE) && (controls.idling)) {
-    controls.vntPositionDC=0;
+  if (controls.idling) {
+    if ((settings.options & OPTIONS_VANESOPENIDLE)) {
+      controls.vntPositionDC=0;
+    }
     /* Don't build up integral while idling, or we get a surprise when we engage */
     /* not sure if this is still needed as I now set request to zero when at idle */
     integral = 0;
