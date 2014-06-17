@@ -31,7 +31,7 @@
 #define PIN_OUTPUT2 12
 #define PIN_TESTSIG 1
 
-#define PIN_BUTTON_MODE_SELECT 10
+/*#define PIN_BUTTON_MODE_SELECT 10 */
 
 #define PIN_LCD 8
 
@@ -530,8 +530,8 @@ void setup() {
   pinMode(PIN_AUX_N75,OUTPUT);
   pinMode(PIN_TESTSIG,OUTPUT);
 
-  pinMode(PIN_BUTTON_MODE_SELECT,INPUT);
-  digitalWrite(PIN_BUTTON_MODE_SELECT,HIGH); // pullup for mode select button
+  // pinMode(PIN_BUTTON_MODE_SELECT,INPUT);
+  // digitalWrite(PIN_BUTTON_MODE_SELECT,HIGH); // pullup for mode select button
 
   pinMode(PIN_TPS,INPUT);
   pinMode(PIN_MAP,INPUT);
@@ -574,14 +574,14 @@ void setup() {
 }
 
 void modeSelect() {
-  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
+//  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
     controls.mode = 1;
     editorMaps = editorMaps1;
     auxMap = auxMap1;
     boostRequest = boostRequest1;
     boostDCMax = boostDCMax1;
     boostDCMin = boostDCMin1;
-  } 
+/*  } 
   else {
     controls.mode = 2;
     editorMaps = editorMaps2;
@@ -589,7 +589,7 @@ void modeSelect() {
     boostRequest = boostRequest2;
     boostDCMax = boostDCMax2;
     boostDCMin = boostDCMin2;    
-  }
+  } */
 }
 
 void loadDefaults() {
@@ -2128,7 +2128,7 @@ static char testsig;
 void loop() {
   static char lastPage;
   // Switch operating mode/maps according to external button
-  modeSelect();
+  // modeSelect();
   // read sensor data (moved off from interrupt handler)
   readValues();
   if (controls.rpmActual == 0) {
