@@ -561,8 +561,6 @@ void setup() {
   Serial.println("\r\n");
   Serial.write(clearScreen,sizeof(clearScreen));
   tpsAvg.size=AVG_MAX;
-  /* I'm thinking about changing this - our PID loop is AVG_MAX samples behind reality which certainly doesn't help it make good decisions
-   The challenge will be noise - not sure how clean the MAP signal actually is - data logging? */
   mapAvg.size=AVG_MAX;
   egtAvg.size=AVG_MAX;
 
