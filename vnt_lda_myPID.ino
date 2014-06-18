@@ -1934,6 +1934,7 @@ void processValues() {
 
   controls.prevPidOutput = controls.pidOutput;
 
+  // Not sure why I used two variables here? 
   toControlVNT =  controls.pidOutput * controlSpan + controls.vntMinDc;
 
   controls.vntPositionDC = toControlVNT;
@@ -1948,7 +1949,6 @@ void processValues() {
       controls.vntPositionDC=0;
     }
     /* Don't build up integral while idling, or we get a surprise when we engage */
-    /* not sure if this is still needed as I now set request to zero when at idle */
     integral = 0;
   }
 
