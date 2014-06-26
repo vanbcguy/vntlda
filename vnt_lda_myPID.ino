@@ -1844,6 +1844,8 @@ void processValues() {
   else {    
     controls.idling = true;
   }
+  unsigned long now = millis();
+  float timeChange = (float)(now - lastTime);
 
   static float error;
   static float integral;
@@ -1906,12 +1908,13 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    integral = integral + error;
+    integral += (error * timeChange);
   }
 
   /* Determine the slope of the signal */
-  derivate = (error - errorOld);
+  derivate = (error - errorOld) / timeChange;
   errorOld = error;
+  lastTime = now;
 
   /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
   if (error>0) {
