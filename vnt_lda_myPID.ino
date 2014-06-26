@@ -300,6 +300,7 @@ struct controlsStruct {
 
   float pidOutput;
   float prevPidOutput;
+  unsigned long lastTime;
 };
 
 controlsStruct controls;
@@ -1845,7 +1846,7 @@ void processValues() {
     controls.idling = true;
   }
   unsigned long now = millis();
-  float timeChange = (float)(now - lastTime);
+  float timeChange = (float)(now - controls.lastTime);
 
   static float error;
   static float integral;
@@ -1914,7 +1915,7 @@ void processValues() {
   /* Determine the slope of the signal */
   derivate = (error - errorOld) / timeChange;
   errorOld = error;
-  lastTime = now;
+  controls.lastTime = now;
 
   /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
   if (error>0) {
