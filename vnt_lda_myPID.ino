@@ -1853,9 +1853,8 @@ void processValues() {
 
   static float error;
   static float integral;
-  // static float errorOld;
-
   static float derivate;
+  
   static float Kp,p;
   static float Ki,i;
   static float Kd,d;
@@ -1912,7 +1911,7 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    integral += (error * timeChange);
+    integral += (Ki * error * timeChange);
   }
 
   /* Determine the slope of the signal */
@@ -1926,7 +1925,7 @@ void processValues() {
   }
 
   /* PID Method #1 */
-  controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
+  controls.pidOutput = (Kp * error) + integral - (Kd * derivate);
 
   /* PID Method #2 */
   //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
