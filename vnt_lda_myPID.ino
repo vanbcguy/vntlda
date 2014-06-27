@@ -1911,7 +1911,7 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    integral += (error * timeChange);
+    integral += (error * timeChange)/10;
   }
 
   /* Determine the slope of the signal */
@@ -1925,10 +1925,10 @@ void processValues() {
   }
 
   /* PID Method #1 */
-  //controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
+  controls.pidOutput = (Kp * error) + (Ki * integral) - (Kd * derivate);
 
   /* PID Method #2 */
-  controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
+  //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
