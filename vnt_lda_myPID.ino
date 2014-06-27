@@ -45,6 +45,7 @@
 #define EGT_ALARM 760
 #define EGT_MAX_READ 850
 
+/* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
 #define MAP_SCALING_KPA 0.977 
 #define EMP_SCALING_KPA 1.953 
 
