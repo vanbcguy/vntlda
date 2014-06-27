@@ -1870,7 +1870,7 @@ void processValues() {
   float toControlVNT;
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
-  Ki = (float)(settings.boostKi)/PIDControlRatio/10;  // Allow very small values for I since we are multiplying by Kp as well
+  Ki = (float)(settings.boostKi)/(PIDControlRatio * 100);  // Allow very small values for I since we are multiplying by Kp as well
   Kd = (float)(settings.boostKd)/PIDControlRatio;  
 
   /* This is the available span of our DC - we can only go between min and max */
@@ -1912,7 +1912,7 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    integral += (error * timeChange)/10;
+    integral += (error * timeChange);
   }
 
   /* Determine the slope of the signal */
