@@ -1907,7 +1907,7 @@ void processValues() {
   }
 
   /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
-  error = scaledTarget - scaledInput;
+  error = Kp * (scaledTarget - scaledInput);
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
@@ -1915,7 +1915,7 @@ void processValues() {
   }
 
   /* Determine the slope of the signal */
-  derivate = (scaledInput - controls.lastInput) / timeChange;
+  derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
   controls.lastInput = scaledInput;
   controls.lastTime = now;
 
@@ -1925,7 +1925,7 @@ void processValues() {
   }
 
   /* PID Method #1 */
-  controls.pidOutput = (Kp * error) + integral - (Kd * derivate);
+  controls.pidOutput = error + integral - derivate;
 
   /* PID Method #2 */
   //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
