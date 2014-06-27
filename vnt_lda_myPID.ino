@@ -53,6 +53,10 @@
  or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
 
+/* The system will make smaller adjustments when it is close to the specified value - this constant defines the point at which the system goes
+ from "regular" control mode to "fine" mode - this value is in kPa */
+#define PIDFineControl 15
+
 void readValuesMap();
 void updateOutputValues(bool showDebug);
 void pageAbout(char key);
@@ -1869,7 +1873,7 @@ void processValues() {
   float toControlVNT;
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 100);  // Allow very small values for I since we are multiplying by Kp as well
+  Ki = (float)(settings.boostKi)/(PIDControlRatio * 100);  // Need very small values for Ki
   Kd = (float)(settings.boostKd)/PIDControlRatio;  
 
   /* This is the available span of our DC - we can only go between min and max */
@@ -1911,7 +1915,11 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    integral += (Ki * error * timeChange);
+    if (abs(controls.vntTargetPressure - controls.mapCorrected) > PIDFineControl) {
+      integral += (Ki * error * timeChange);
+    } else {
+      integral += (Ki * error * timeChange / 2); // Fine control - reduce integral changes by a factor of 2
+    }
   }
 
   /* Determine the slope of the signal */
