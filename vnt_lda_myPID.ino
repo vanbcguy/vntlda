@@ -1859,9 +1859,9 @@ void processValues() {
   static float integral;
   static float derivate;
   
-  static float Kp,p;
-  static float Ki,i;
-  static float Kd,d;
+  float Kp;
+  float Ki;
+  float Kd;
 
   float controlSpan;
   float inputSpan;
@@ -1916,9 +1916,9 @@ void processValues() {
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
     if (abs(controls.vntTargetPressure - controls.mapCorrected) > PIDFineControl) {
-      integral += (Ki * error * timeChange);
+      integral += (Ki * (scaledTarget - scaledInput) * timeChange);
     } else {
-      integral += (Ki * error * timeChange / 2); // Fine control - reduce integral changes by a factor of 2
+      integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); // Fine control - reduce integral changes by a factor of 2
     }
   }
 
