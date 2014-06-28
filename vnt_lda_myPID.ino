@@ -1874,7 +1874,7 @@ void processValues() {
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
   Ki = (float)(settings.boostKi)/(PIDControlRatio * 100);  // Need very small values for Ki
-  Kd = (float)(settings.boostKd)/(PIDControlRatio / 100);  // Need larger values for Kd
+  Kd = (float)(settings.boostKd * 100)/PIDControlRatio;    // Need larger values for Kd
 
   /* This is the available span of our DC - we can only go between min and max */
   controlSpan = controls.vntMaxDc - controls.vntMinDc;
@@ -1931,6 +1931,13 @@ void processValues() {
       else {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
       }
+    }
+    
+    // Don't allow integral to exceed 100% or we get nasty results
+    if ( integral >= 1 ) {
+      integral = 1;
+    else if ( integral < 0 ) {
+      ingegral = 0;
     }
 
     /* Determine the slope of the signal */
