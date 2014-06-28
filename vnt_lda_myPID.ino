@@ -1936,8 +1936,8 @@ void processValues() {
     // Don't allow integral to exceed 100% or we get nasty results
     if ( integral >= 1 ) {
       integral = 1;
-    else if ( integral < 0 ) {
-      ingegral = 0;
+    } else if ( integral < 0 ) {
+      integral = 0;
     }
 
     /* Determine the slope of the signal */
