@@ -1915,10 +1915,10 @@ void processValues() {
 
   /* Check if we were at the limit already on our last run, only integrate if we are not */
   if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    if (abs(controls.vntTargetPressure - controls.mapCorrected) > PIDFineControl) {
-      integral += (Ki * (scaledTarget - scaledInput) * timeChange);
-    } else {
+    if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControl) {
       integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); // Fine control - reduce integral changes by a factor of 2
+    } else {
+      integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
     }
   }
 
