@@ -305,7 +305,7 @@ struct controlsStruct {
 
   float pidOutput;
   float prevPidOutput;
-  
+
   unsigned long lastTime;
   float lastInput;
 };
@@ -582,22 +582,22 @@ void setup() {
 }
 
 void modeSelect() {
-//  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
-    controls.mode = 1;
-    editorMaps = editorMaps1;
-    auxMap = auxMap1;
-    boostRequest = boostRequest1;
-    boostDCMax = boostDCMax1;
-    boostDCMin = boostDCMin1;
-/*  } 
-  else {
-    controls.mode = 2;
-    editorMaps = editorMaps2;
-    auxMap = auxMap2;
-    boostRequest = boostRequest2;
-    boostDCMax = boostDCMax2;
-    boostDCMin = boostDCMin2;    
-  } */
+  //  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
+  controls.mode = 1;
+  editorMaps = editorMaps1;
+  auxMap = auxMap1;
+  boostRequest = boostRequest1;
+  boostDCMax = boostDCMax1;
+  boostDCMin = boostDCMin1;
+  /*  } 
+   else {
+   controls.mode = 2;
+   editorMaps = editorMaps2;
+   auxMap = auxMap2;
+   boostRequest = boostRequest2;
+   boostDCMax = boostDCMax2;
+   boostDCMin = boostDCMin2;    
+   } */
 }
 
 void loadDefaults() {
@@ -1219,14 +1219,14 @@ void pageOutputTests(char key) {
                        controls.vntPositionRemapped<255;
                        controls.vntPositionRemapped++) {
           updateOutputValues(true);
-          updateLCD();
+        updateLCD();
         delay(20);
       }
       for (controls.vntPositionRemapped = 255;
                        controls.vntPositionRemapped>0;
                        controls.vntPositionRemapped--) {
           updateOutputValues(true);
-          updateLCD();
+        updateLCD();
         delay(20);
       }				
       break;
@@ -1268,85 +1268,85 @@ prog_uchar exportBoostDCMax[] PROGMEM = "VNT Max DC Map dump:";
 prog_uchar exportBoostDCMin[] PROGMEM = "VNT Min DC Map dump:";
 
 void pageExport(char key) {
-    if (key) {
-        pageHeader();
-        printFromFlash(exportConf);
+  if (key) {
+    pageHeader();
+    printFromFlash(exportConf);
+    printFromFlash(ANSIclearEolAndLf);
+    Serial.print("!AA");
+    for (int i=0;i<sizeof(settingsStruct);i++) {
+      if (i%32 == 31) 
         printFromFlash(ANSIclearEolAndLf);
-        Serial.print("!AA");
-        for (int i=0;i<sizeof(settingsStruct);i++) {
-            if (i%32 == 31) 
-                printFromFlash(ANSIclearEolAndLf);
-            unsigned char v = (unsigned char)*(i+((unsigned char*)&settings));
-            if (v<16)
-                Serial.print("0");
-            Serial.print(v,HEX);
-        }
-        Serial.print("!");
-        printFromFlash(ANSIclearEolAndLf);
-        printFromFlash(ANSIclearEolAndLf);
-        
-        printFromFlash(exportVntMap);
-        printFromFlash(ANSIclearEolAndLf);
-        Serial.print("!AA");
-        for (int i=0;i<sizeof(boostRequest1);i++) {
-            if (i && i%16 == 0) 
-                printFromFlash(ANSIclearEolAndLf);
-            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostRequest1));
-            if (v<16)
-                Serial.print("0");
-            Serial.print(v,HEX);
-        }
-        Serial.print("!");
-        printFromFlash(ANSIclearEolAndLf);
-        printFromFlash(ANSIclearEolAndLf);
-        
-        printFromFlash(exportBoostDCMax);
-        printFromFlash(ANSIclearEolAndLf);
-        Serial.print("!AB");
-        for (int i=0;i<sizeof(boostDCMax1);i++) {
-            if (i && i%16 == 0) 
-                printFromFlash(ANSIclearEolAndLf);
-            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMax1));
-            if (v<16)
-                Serial.print("0");
-            Serial.print(v,HEX);
-        }
-        Serial.print("!");
-        printFromFlash(ANSIclearEolAndLf);
-        printFromFlash(ANSIclearEolAndLf);
-        
-        printFromFlash(exportBoostDCMin);
-        printFromFlash(ANSIclearEolAndLf);
-        Serial.print("!AC");
-        for (int i=0;i<sizeof(boostDCMin1);i++) {
-            if (i && i%16 == 0) 
-                printFromFlash(ANSIclearEolAndLf);
-            unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMin1));
-            if (v<16)
-                Serial.print("0");
-            Serial.print(v,HEX);
-        }
-        Serial.print("!");
-        printFromFlash(ANSIclearEolAndLf);
-        printFromFlash(ANSIclearEolAndLf);       
-        
-        printFromFlash(exportLdaMap);
-        printFromFlash(ANSIclearEolAndLf);
-        Serial.print("!AD");
-        for (int i=0;i<sizeof(auxMap1);i++) {
-            if (i && i%16 == 0) 
-                printFromFlash(ANSIclearEolAndLf);
-            unsigned char v = (unsigned char)*(i+((unsigned char*)&auxMap1));
-            if (v<16)
-                Serial.print("0");
-            Serial.print(v,HEX);
-        }
-        Serial.print("!");
-        
-        printFromFlash(ANSIclearEolAndLf);
-        
-        printFromFlash(ANSIclearEos);	
+      unsigned char v = (unsigned char)*(i+((unsigned char*)&settings));
+      if (v<16)
+        Serial.print("0");
+      Serial.print(v,HEX);
     }
+    Serial.print("!");
+    printFromFlash(ANSIclearEolAndLf);
+    printFromFlash(ANSIclearEolAndLf);
+
+    printFromFlash(exportVntMap);
+    printFromFlash(ANSIclearEolAndLf);
+    Serial.print("!AA");
+    for (int i=0;i<sizeof(boostRequest1);i++) {
+      if (i && i%16 == 0) 
+        printFromFlash(ANSIclearEolAndLf);
+      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostRequest1));
+      if (v<16)
+        Serial.print("0");
+      Serial.print(v,HEX);
+    }
+    Serial.print("!");
+    printFromFlash(ANSIclearEolAndLf);
+    printFromFlash(ANSIclearEolAndLf);
+
+    printFromFlash(exportBoostDCMax);
+    printFromFlash(ANSIclearEolAndLf);
+    Serial.print("!AB");
+    for (int i=0;i<sizeof(boostDCMax1);i++) {
+      if (i && i%16 == 0) 
+        printFromFlash(ANSIclearEolAndLf);
+      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMax1));
+      if (v<16)
+        Serial.print("0");
+      Serial.print(v,HEX);
+    }
+    Serial.print("!");
+    printFromFlash(ANSIclearEolAndLf);
+    printFromFlash(ANSIclearEolAndLf);
+
+    printFromFlash(exportBoostDCMin);
+    printFromFlash(ANSIclearEolAndLf);
+    Serial.print("!AC");
+    for (int i=0;i<sizeof(boostDCMin1);i++) {
+      if (i && i%16 == 0) 
+        printFromFlash(ANSIclearEolAndLf);
+      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMin1));
+      if (v<16)
+        Serial.print("0");
+      Serial.print(v,HEX);
+    }
+    Serial.print("!");
+    printFromFlash(ANSIclearEolAndLf);
+    printFromFlash(ANSIclearEolAndLf);       
+
+    printFromFlash(exportLdaMap);
+    printFromFlash(ANSIclearEolAndLf);
+    Serial.print("!AD");
+    for (int i=0;i<sizeof(auxMap1);i++) {
+      if (i && i%16 == 0) 
+        printFromFlash(ANSIclearEolAndLf);
+      unsigned char v = (unsigned char)*(i+((unsigned char*)&auxMap1));
+      if (v<16)
+        Serial.print("0");
+      Serial.print(v,HEX);
+    }
+    Serial.print("!");
+
+    printFromFlash(ANSIclearEolAndLf);
+
+    printFromFlash(ANSIclearEos);	
+  }
 }
 
 unsigned char i;
@@ -1858,7 +1858,7 @@ void processValues() {
   static float error;
   static float integral;
   static float derivate;
-  
+
   float Kp;
   float Ki;
   float Kd;
@@ -1874,7 +1874,7 @@ void processValues() {
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
   Ki = (float)(settings.boostKi)/(PIDControlRatio * 100);  // Need very small values for Ki
-  Kd = (float)(settings.boostKd)/PIDControlRatio;  
+  Kd = (float)(settings.boostKd)/(PIDControlRatio / 100);  // Need larger values for Kd
 
   /* This is the available span of our DC - we can only go between min and max */
   controlSpan = controls.vntMaxDc - controls.vntMinDc;
@@ -1894,49 +1894,62 @@ void processValues() {
 
   controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
 
-  /* If we are at idle then we don't want any boost regardless of map */
-  if ((settings.options & OPTIONS_VANESOPENIDLE) && (controls.idling)) {
-    controls.vntTargetPressure=0;
-  }
 
-  /* Now make the target a percentage of the same input span */
-  scaledTarget = (float)controls.vntTargetPressure / inputSpan;
+  if ((controls.idling)) {
+    // If we are at idle then we don't want any boost regardless of map 
 
-  /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
-  if (scaledTarget>1.0) {
-    scaledTarget = 1.0;
-  } 
-  else if (scaledTarget<0) {
-    scaledTarget = 0;
-  }
+    controls.vntTargetPressure=0;                      // We don't want any pressure
+    controls.lastInput = scaledInput;                  // Keep the derivative loop primed
+    integral = 0;                                      // keep the integral at zero
+    controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
+    
+  } else { 
 
-  /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
-  error = Kp * (scaledTarget - scaledInput);
+    // Normal running mode
 
-  /* Check if we were at the limit already on our last run, only integrate if we are not */
-  if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-    if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControl) {
-      integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); // Fine control - reduce integral changes by a factor of 2
-    } else {
-      integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
+    /* Now make the target a percentage of the same input span */
+    scaledTarget = (float)controls.vntTargetPressure / inputSpan;
+
+    /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
+    if (scaledTarget>1.0) {
+      scaledTarget = 1.0;
+    } 
+    else if (scaledTarget<0) {
+      scaledTarget = 0;
     }
-  }
 
-  /* Determine the slope of the signal */
-  derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
-  controls.lastInput = scaledInput;
-  controls.lastTime = now;
+    /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
+    error = Kp * (scaledTarget - scaledInput);
 
-  /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
-  if (error>0) {
-    error = (error * (float)settings.boostBias) / 10; 
-  }
+    /* Check if we were at the limit already on our last run, only integrate if we are not */
+    if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+      
+      // Fine control - reduce integral changes by a factor of 2 if we are approaching our target value
+      if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControl) {
+        integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); 
+      } 
+      else {
+        integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
+      }
+    }
 
-  /* PID Method #1 */
-  controls.pidOutput = error + integral - derivate;
+    /* Determine the slope of the signal */
+    derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
+    controls.lastInput = scaledInput;
+    controls.lastTime = now;
 
-  /* PID Method #2 */
-  //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
+    /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
+    if (error>0) {
+      error = (error * (float)settings.boostBias) / 10; 
+    }
+
+    /* PID Method #1 */
+    controls.pidOutput = error + integral - derivate;
+
+    /* PID Method #2 */
+    //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
+
+  }  // End automatic mode
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
@@ -1958,12 +1971,8 @@ void processValues() {
   if (controls.vntPositionDC>controls.vntMaxDc)
     controls.vntPositionDC=controls.vntMaxDc;
 
-  if (controls.idling) {
-    if ((settings.options & OPTIONS_VANESOPENIDLE)) {
-      controls.vntPositionDC=0;
-    }
-    /* Don't build up integral while idling, or we get a surprise when we engage */
-    integral = 0;
+  if ((settings.options & OPTIONS_VANESOPENIDLE)) {  // Open the vanes fully if set that way
+    controls.vntPositionDC=0;
   }
 
   /* Display these as real numbers - will make the logs more useful as we can try different values */
@@ -2221,6 +2230,7 @@ void loop() {
   testsig = !testsig;
   digitalWrite(PIN_TESTSIG,(testsig?HIGH:LOW));  
 }
+
 
 
 
