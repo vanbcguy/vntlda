@@ -1929,7 +1929,11 @@ void processValues() {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); 
       } 
       else {
+        if ((controls.mapCorrected - controls.vntTargetPressure) > PIDFineControl) {
+          integral += (Ki * (scaledTarget - scaledInput) * timeChange * 2); // Take off integral 2x faster when we are way over
+        } else {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
+        }
       }
     }
     
