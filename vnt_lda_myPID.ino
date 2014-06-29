@@ -55,7 +55,7 @@
 
 /* The system will make smaller adjustments when it is close to the specified value - this constant defines the point at which the system goes
  from "regular" control mode to "fine" mode - this value is in kPa */
-#define PIDFineControl 15
+#define PIDFineControl 25
 
 void readValuesMap();
 void updateOutputValues(bool showDebug);
@@ -1952,6 +1952,8 @@ void processValues() {
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
       error = (error * (float)settings.boostBias) / 10; 
+    } else if ((error<0) && (scaledInput > 0.85)) {
+      error = (error * 2);        // If we are over 220 kpa then double the proportional response to pulling off boost - turbo saver
     }
 
     /* PID Method #1 */
