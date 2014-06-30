@@ -57,6 +57,12 @@
  from "regular" control mode to "fine" mode - this value is in kPa */
 #define PIDFineControl 25
 
+/* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
+ PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
+ fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.85 * 250kPa = 212kPa for a 2.5 bar
+ sensor.  I don't recommend target boost values that are greater than 80% of your sensor's maximum capability */
+#define PIDMaxBoost 0.85
+
 void readValuesMap();
 void updateOutputValues(bool showDebug);
 void pageAbout(char key);
@@ -1952,8 +1958,8 @@ void processValues() {
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
       error = (error * (float)settings.boostBias) / 10; 
-    } else if ((error<0) && (scaledInput > 0.85)) {
-      error = (error * 2);        // If we are over 220 kpa then double the proportional response to pulling off boost - turbo saver
+    } else if ((error<0) && (scaledInput > PIDMaxBoost)) {
+      error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
     }
 
     /* PID Method #1 */
