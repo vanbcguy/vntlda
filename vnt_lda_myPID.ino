@@ -238,7 +238,7 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define METHOD_PID 1
 #define METHOD_SIMULATE_ACTUATOR 2
 
-#define MAIN_LOOP_DELAY (1000/40) // ms
+#define MAIN_LOOP_DELAY 50 // ms
 #define TEMP_HYSTERESIS 3
 
 // used for RPM counting
@@ -1359,7 +1359,7 @@ unsigned char i;
 
 void pageDataLogger(char key) {
   i++;
-  if (i % 3 == 0) {
+  if (i % 2 == 0) {
     Serial.write(2); // stx
     Serial.print(controls.mapCorrected,DEC);
     Serial.print(",");
