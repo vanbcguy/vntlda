@@ -55,7 +55,11 @@
 
 /* The system will make smaller adjustments when it is close to the specified value - this constant defines the point at which the system goes
  from "regular" control mode to "fine" mode - this value is in kPa */
-#define PIDFineControl 25
+#define PIDFineControlUp 35
+
+/* The system will make larger adjustments when it is over the setpoint to help control windup and overshoot - this constant defines the point
+at which the system goes from "regular" control mode to "fast reduction" mode - this value is in kPa */
+#define PIDFineControlDown 15
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
@@ -1931,11 +1935,11 @@ void processValues() {
     if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       
       // Fine control - reduce integral changes by a factor of 2 if we are approaching our target value
-      if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControl) {
+      if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControlUp) {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); 
       } 
       else {
-        if ((controls.mapCorrected - controls.vntTargetPressure) > PIDFineControl) {
+        if ((controls.mapCorrected - controls.vntTargetPressure) > PIDFineControlDown) {
           integral += (Ki * (scaledTarget - scaledInput) * timeChange * 2); // Take off integral 2x faster when we are way over
         } else {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
