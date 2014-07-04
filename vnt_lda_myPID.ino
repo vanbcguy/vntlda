@@ -80,7 +80,7 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 8 
+#define AVG_MAX 5 
 
 #define STATUS_IDLE 1
 #define STATUS_CRUISING 2
