@@ -1958,7 +1958,7 @@ void processValues() {
       
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmCorrected>0) {
-        integral += (Ki*pow((settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp/10) * (scaledTarget - scaledInput) * timechange);
+        integral += (Ki*pow((settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp/10) * (scaledTarget - scaledInput) * timeChange);
       }
     }
     
