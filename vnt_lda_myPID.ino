@@ -65,7 +65,7 @@ at which the system goes from "regular" control mode to "fast reduction" mode - 
 
 /* RPM-based integral - change this value to alter the curve. Larger values will cause the integral scaling factor to back off faster as RPM increases
 while smaller numbers will cause the integral to stay larger.*/
-#define KiExp 50
+#define KiExp 0.5
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
@@ -1958,7 +1958,7 @@ void processValues() {
       
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmCorrected>0) {
-        integral += (Ki*pow((settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp/10) * (scaledTarget - scaledInput) * timeChange);
+        integral += ((Ki*pow((settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp)) * (scaledTarget - scaledInput) * timeChange);
       }
     }
     
