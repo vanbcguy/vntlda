@@ -45,6 +45,8 @@
 #define EGT_ALARM 760
 #define EGT_MAX_READ 850
 
+#define IDLE_MAX_RPM 1100
+
 /* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
 #define MAP_SCALING_KPA 0.977 
 #define EMP_SCALING_KPA 1.953 
@@ -60,6 +62,10 @@
 /* The system will make larger adjustments when it is over the setpoint to help control windup and overshoot - this constant defines the point
 at which the system goes from "regular" control mode to "fast reduction" mode - this value is in kPa */
 #define PIDFineControlDown 15
+
+/* RPM-based integral - change this value to alter the curve. Larger values will cause the integral scaling factor to back off faster as RPM increases
+while smaller numbers will cause the integral to stay larger.*/
+#define KiExp 50
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
@@ -1859,8 +1865,11 @@ void processValues() {
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
   } 
-  else {    
+  else if ( controls.rpmCorrected < IDLE_MAX_RPM ) {    
     controls.idling = true;
+  }
+  else {
+    controls.idling = false;
   }
   unsigned long now = millis();
   float timeChange = (float)(now - controls.lastTime);
@@ -1935,6 +1944,7 @@ void processValues() {
     if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       
       // Fine control - reduce integral changes by a factor of 2 if we are approaching our target value
+      /* Commented out - trying RPM based scaling instead
       if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControlUp) {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); 
       } 
@@ -1944,6 +1954,11 @@ void processValues() {
         } else {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
         }
+      } */
+      
+      // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
+      if ( controls.rpmCorrected>0) {
+        integral += (Ki*pow((settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp/10) * (scaledTarget - scaledInput) * timechange);
       }
     }
     
