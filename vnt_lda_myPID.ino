@@ -1892,7 +1892,7 @@ void processValues() {
   float toControlVNT;
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 10);  // Need very small values for Ki
+  Ki = (float)(settings.boostKi)/(PIDControlRatio * 1000);  // Need very small values for Ki
   Kd = (float)(settings.boostKd * 100)/PIDControlRatio;    // Need larger values for Kd
 
   /* This is the available span of our DC - we can only go between min and max */
