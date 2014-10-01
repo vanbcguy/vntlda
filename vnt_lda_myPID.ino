@@ -1972,7 +1972,6 @@ void processValues() {
     /* Determine the slope of the signal */
     derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
-    controls.lastTime = now;
 
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
@@ -1988,6 +1987,9 @@ void processValues() {
     //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
   }  // End automatic mode
+
+  // Save the last time we ran
+  controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
