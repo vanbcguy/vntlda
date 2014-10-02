@@ -1892,7 +1892,7 @@ void processValues() {
   float toControlVNT;
 
   Kp = (float)(settings.boostKp)/PIDControlRatio;
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 1000);  // Need very small values for Ki
+  Ki = (float)(settings.boostKi)/(PIDControlRatio * 500);  // Need very small values for Ki
   Kd = (float)(settings.boostKd * 100)/PIDControlRatio;    // Need larger values for Kd
 
   /* This is the available span of our DC - we can only go between min and max */
@@ -1987,8 +1987,8 @@ void processValues() {
     //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
 
   }  // End automatic mode
-
-  // Save the last time we ran
+  
+  now = millis();
   controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
