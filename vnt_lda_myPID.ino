@@ -55,23 +55,17 @@
  or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
 
-/* The system will make smaller adjustments when it is close to the specified value - this constant defines the point at which the system goes
- from "regular" control mode to "fine" mode - this value is in kPa */
-#define PIDFineControlUp 35
-
-/* The system will make larger adjustments when it is over the setpoint to help control windup and overshoot - this constant defines the point
-at which the system goes from "regular" control mode to "fast reduction" mode - this value is in kPa */
-#define PIDFineControlDown 15
-
-/* RPM-based integral - change this value to alter the curve. Larger values will cause the integral scaling factor to back off faster as RPM increases
-while smaller numbers will cause the integral to stay larger.*/
+/* RPM-based integral and proportional gain - change this value to alter the curve. Larger values will cause the integral scaling factor to back off
+faster as RPM increases while smaller numbers will cause the integral to stay larger.
+These should be moved in to the GUI settings rather than defined in code */
 #define KiExp 0.75
+#define KpExp 0.60
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
- fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.85 * 250kPa = 212kPa for a 2.5 bar
- sensor.  I don't recommend target boost values that are greater than 80% of your sensor's maximum capability */
-#define PIDMaxBoost 0.85
+ fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
+ sensor. */
+#define PIDMaxBoost 0.95
 
 void readValuesMap();
 void updateOutputValues(bool showDebug);
@@ -1922,7 +1916,7 @@ void processValues() {
     integral = 0;                                      // keep the integral at zero
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
     
-  } else { 
+  } else if ( controls.rpmCorrected <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
 
     // Normal running mode
 
@@ -1938,24 +1932,14 @@ void processValues() {
     }
 
     /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
-    error = Kp * (scaledTarget - scaledInput);
+    //error = Kp * (scaledTarget - scaledInput);
 
+    /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
+       Change KpExp to alter the curve */
+    error = ((Kp*pow(float(settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KpExp)) * (scaledTarget - scaledInput));  
+     
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-      
-      // Fine control - reduce integral changes by a factor of 2 if we are approaching our target value
-      /* Commented out - trying RPM based scaling instead
-      if ((controls.vntTargetPressure - controls.mapCorrected) < PIDFineControlUp) {
-        integral += (Ki * (scaledTarget - scaledInput) * timeChange / 2); 
-      } 
-      else {
-        if ((controls.mapCorrected - controls.vntTargetPressure) > PIDFineControlDown) {
-          integral += (Ki * (scaledTarget - scaledInput) * timeChange * 2); // Take off integral 2x faster when we are way over
-        } else {
-        integral += (Ki * (scaledTarget - scaledInput) * timeChange); 
-        }
-      } */
-      
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmCorrected>0) {
         integral += ((Ki*pow(float(settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp)) * (scaledTarget - scaledInput) * timeChange);
@@ -1980,13 +1964,13 @@ void processValues() {
       error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
     }
 
-    /* PID Method #1 */
+    /* PID Output */
     controls.pidOutput = error + integral - derivate;
 
-    /* PID Method #2 */
-    //controls.pidOutput = Kp * (error + (Ki * integral)) - (Kd * derivate);
+  } else {
+    controls.pidOutput = 0;
+  }
 
-  }  // End automatic mode
   
   now = millis();
   controls.lastTime = now;
