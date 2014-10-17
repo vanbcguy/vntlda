@@ -59,7 +59,8 @@
 faster as RPM increases while smaller numbers will cause the integral to stay larger.
 These should be moved in to the GUI settings rather than defined in code */
 #define KiExp 0.75
-#define KpExp 0.60
+#define KpExp 2.5
+#define rpmMin 900
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
@@ -1936,13 +1937,13 @@ void processValues() {
 
     /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
        Change KpExp to alter the curve */
-    error = ((Kp*pow(float(settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KpExp)) * (scaledTarget - scaledInput));  
+    error = ((Kp*pow((settings.rpmMax-controls.rpmCorrected+rpmMin)/(float)settings.rpmMax, KpExp)) * (scaledTarget - scaledInput));  
      
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmCorrected>0) {
-        integral += ((Ki*pow(float(settings.rpmMax-controls.rpmCorrected)/settings.rpmMax, KiExp)) * (scaledTarget - scaledInput) * timeChange);
+        integral += ((Ki*pow((settings.rpmMax-controls.rpmCorrected)/(float)settings.rpmMax, KiExp)) * (scaledTarget - scaledInput) * timeChange);
       }
     }
     
