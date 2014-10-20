@@ -316,6 +316,8 @@ struct controlsStruct {
 
   float pidOutput;
   float prevPidOutput;
+  
+  float rpmScale;
 
   unsigned long lastTime;
   float lastInput;
@@ -1384,9 +1386,7 @@ void pageDataLogger(char key) {
     Serial.print(",");
     Serial.print(controls.boostCalculatedD,DEC);
     Serial.print(",");
-    Serial.print(controls.statusBits,DEC);
-    Serial.print(",");
-    Serial.print(controls.prevPidOutput,DEC);
+    Serial.print(controls.rpmScale,DEC);
     Serial.print(",");
     Serial.print(controls.pidOutput,DEC);
     Serial.print(",");
@@ -1932,18 +1932,20 @@ void processValues() {
       scaledTarget = 0;
     }
 
+    controls.rpmScale = (settings.rpmMax-controls.rpmCorrected+rpmMin)/settings.rpmMax;
+
     /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
     //error = Kp * (scaledTarget - scaledInput);
 
     /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
        Change KpExp to alter the curve */
-    error = ((Kp*pow((settings.rpmMax-controls.rpmCorrected+rpmMin)/(float)settings.rpmMax, KpExp)) * (scaledTarget - scaledInput));  
+    error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
      
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=1 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmCorrected>0) {
-        integral += ((Ki*pow((settings.rpmMax-controls.rpmCorrected)/(float)settings.rpmMax, KiExp)) * (scaledTarget - scaledInput) * timeChange);
+        integral += ((Ki*pow(controls.rpmScale, KiExp)) * (scaledTarget - scaledInput) * timeChange);
       }
     }
     
