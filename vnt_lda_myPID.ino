@@ -58,8 +58,8 @@
 /* RPM-based integral and proportional gain - change this value to alter the curve. Larger values will cause the integral scaling factor to back off
 faster as RPM increases while smaller numbers will cause the integral to stay larger.
 These should be moved in to the GUI settings rather than defined in code */
-#define KiExp 0.75
-#define KpExp 2.5
+#define KiExp 0.60
+#define KpExp 0.75
 #define rpmMin 900
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
