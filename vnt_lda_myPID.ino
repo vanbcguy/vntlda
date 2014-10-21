@@ -1860,7 +1860,7 @@ void processValues() {
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
   } 
-  else if ( controls.rpmCorrected < IDLE_MAX_RPM ) {    
+  else if ( controls.rpmActual < IDLE_MAX_RPM ) {    
     controls.idling = true;
   }
   else {
@@ -1907,6 +1907,8 @@ void processValues() {
   }
 
   controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
+  
+  controls.rpmScale = (float)(settings.rpmMax - controls.rpmActual + rpmMin) / settings.rpmMax;
 
 
   if ((controls.idling)) {
@@ -1917,7 +1919,7 @@ void processValues() {
     integral = 0;                                      // keep the integral at zero
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
     
-  } else if ( controls.rpmCorrected <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
+  } else if ( controls.rpmActual <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
 
     // Normal running mode
 
@@ -1931,11 +1933,6 @@ void processValues() {
     else if (scaledTarget<0) {
       scaledTarget = 0;
     }
-
-    controls.rpmScale = (settings.rpmMax-controls.rpmCorrected+rpmMin)/settings.rpmMax;
-
-    /* Error will be calculated now - this will be a percentage as we are using our scaled variables */
-    //error = Kp * (scaledTarget - scaledInput);
 
     /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
        Change KpExp to alter the curve */
