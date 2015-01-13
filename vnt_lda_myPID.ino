@@ -464,6 +464,42 @@ void gotoXY(char x,char y) {
   Serial.print("H");
 }
 
+void modeSelect() {
+
+  //  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
+
+  controls.mode = 1;
+
+  editorMaps = editorMaps1;
+
+  auxMap = auxMap1;
+
+  boostRequest = boostRequest1;
+
+  boostDCMax = boostDCMax1;
+
+  boostDCMin = boostDCMin1;
+
+  /*  }  
+
+   else {
+
+   controls.mode = 2;
+
+   editorMaps = editorMaps2;
+
+   auxMap = auxMap2;
+
+   boostRequest = boostRequest2;
+
+   boostDCMax = boostDCMax2;
+
+   boostDCMin = boostDCMin2;     
+
+   } */
+
+}
+
 void setup_lcd() {
   // Put all the LCD setup stuff here, we will call this from
   // the "setup" loop
@@ -512,6 +548,7 @@ void setup_lcd() {
 }
 
 void setup() {
+  modeSelect();
   setup_lcd();
 
   // Print a message to the LCD.
@@ -1727,22 +1764,19 @@ void pageServoFineTune(char key) {
 
 
 int getFilteredAvarage(struct avgStruct *a) {
-/* The original code had a feature to discard high/low readings - I think this is left over from that? 
   int minVal = 0;
   int maxVal = 255;
-*/
   long int avgAll = 0;
 
   for (int i=0; i < a->size;i++) {
     
-  /* The original code had a feature to discard high/low readings - I think this is left over from that? 
     if (a->avgData[i] < minVal) {
       minVal = a->avgData[i];
     } 
     if (a->avgData[i] > maxVal) {
       maxVal = a->avgData[i];
     } 
-  */
+
     avgAll += a->avgData[i];
   }
   avgAll = (int)(avgAll / a->size);
