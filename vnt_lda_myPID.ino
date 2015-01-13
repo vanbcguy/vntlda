@@ -56,11 +56,11 @@
 #define PIDControlRatio 50
 
 /* RPM-based integral and proportional gain - change this value to alter the curve. Larger values will cause the integral scaling factor to back off
-faster as RPM increases while smaller numbers will cause the integral to stay larger.
-These should be moved in to the GUI settings rather than defined in code */
+ faster as RPM increases while smaller numbers will cause the integral to stay larger.
+ These should be moved in to the GUI settings rather than defined in code */
 /* Set rpmSpool to the RPM where your turbo starts to spool.  RPM proportional controls will be inactive below that RPM.  KiExp will adjust the
-clipping for the integral component - we limit the maximum integral based on RPM.  Changing KiExp will adjust the shape of the curve.  KpExp
-changes will adjust the proportional gain based on RPM */
+ clipping for the integral component - we limit the maximum integral based on RPM.  Changing KiExp will adjust the shape of the curve.  KpExp
+ changes will adjust the proportional gain based on RPM */
 #define KiExp 0.8
 #define KpExp 0.8
 #define rpmSpool 1500
@@ -70,6 +70,10 @@ changes will adjust the proportional gain based on RPM */
  fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
  sensor. */
 #define PIDMaxBoost 0.95
+
+/* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
+ a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
+#define rpmResolution 20
 
 void readValuesMap();
 void updateOutputValues(bool showDebug);
@@ -84,7 +88,7 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 5 
+#define AVG_MAX 15 
 
 #define STATUS_IDLE 1
 #define STATUS_CRUISING 2
@@ -246,7 +250,7 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define METHOD_PID 1
 #define METHOD_SIMULATE_ACTUATOR 2
 
-#define MAIN_LOOP_DELAY 50 // ms
+#define MAIN_LOOP_DELAY 100 // ms
 #define TEMP_HYSTERESIS 3
 
 // used for RPM counting
@@ -319,7 +323,7 @@ struct controlsStruct {
 
   float pidOutput;
   float prevPidOutput;
-  
+
   float rpmScale;
   float maxIntegral;
 
@@ -428,43 +432,26 @@ void setPwmFrequency(int pin, int divisor) {
 }
 
 
-bool s;
-unsigned char teethNo = 0;
-long int rpmMicros = 0;  
+volatile unsigned long teethNo = 0;
 
 void rpmTrigger() {
-  //  __asm("cli");
+  // increase the tooth count whenever we see a tooth go by
+  teethNo++;
+}
 
-  s = !s;
-  digitalWrite(PIN_HEARTBEAT,(s?HIGH:LOW));
-  unsigned long now = micros();
-  // filter out implausible signals
-  if (now - rpmLastTeethSeenTime > 400) { 
-    teethNo++;
-    if (teethNo == settings.rpmTeethsPerRotation) {
-      teethNo = 0;
-      controls.rpmActual = (unsigned int)(((1000000*60)/((now-rpmMicros))));
-      if (controls.rpmActual > 9999)
-        controls.rpmActual = 9999;
-      rpmMicros = now;
-    }
-    //rpmNow = micros();
-    //controls.rpmActual = ((settings.rpmTeethsPerRotation*100000000)/((now- rpmLastTeethSeenTime)*60));
-    rpmLastTeethSeenTime = now; 
-    digitalWrite(PIN_HEARTBEAT,(s?HIGH:LOW));
+unsigned long rpmMicros = 0;
 
-    //controls.mapInput = analogRead(PIN_TPS);
-    //controls.tpsInput = analogRead(PIN_MAP);
+void calcRpm() {
+  // We don't need to calculate the RPM every single revolution; lets smooth things out a bit eh?
+  if (teethNo >=  rpmResolution) {
+    // one minute divided by elapsed time times number of teeth seen divided by teeth per rotation
+    controls.rpmActual = ((1000000*60)/(micros() - rpmMicros) * teethNo) / settings.rpmTeethsPerRotation;
 
-    // Read TPS & MAP values
-    //readValues();
-    readValuesMap();
+    // Set time to now, reset tooth count to zero to start incrementing again
+    rpmMicros = micros();
+    teethNo = 0;
 
   }
-
-  //     __asm("sei");
-
-
 }
 
 void gotoXY(char x,char y) {
@@ -553,7 +540,7 @@ void setup() {
   pinMode(PIN_OUTPUT2,OUTPUT);
   pinMode(PIN_VNT_N75,OUTPUT);
   pinMode(PIN_AUX_N75,OUTPUT);
-/*  pinMode(PIN_TESTSIG,OUTPUT); */
+  /*  pinMode(PIN_TESTSIG,OUTPUT); */
 
   // pinMode(PIN_BUTTON_MODE_SELECT,INPUT);
   // digitalWrite(PIN_BUTTON_MODE_SELECT,HIGH); // pullup for mode select button
@@ -1911,16 +1898,16 @@ void processValues() {
   }
 
   controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
-  
+
   controls.rpmScale = (float)(settings.rpmMax - controls.rpmActual + rpmSpool) / settings.rpmMax;
-  
+
   if (controls.rpmScale > 1.0) {
     controls.rpmScale = 1.0;
   }
   else if (controls.rpmScale < 0.0) {
     controls.rpmScale = 0;
   }
-    
+
 
 
   if ((controls.idling)) {
@@ -1930,8 +1917,9 @@ void processValues() {
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
     integral = 0;                                      // keep the integral at zero
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
-    
-  } else if ( controls.rpmActual <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
+
+  } 
+  else if ( controls.rpmActual <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
 
     // Normal running mode
 
@@ -1947,9 +1935,9 @@ void processValues() {
     }
 
     /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
-       Change KpExp to alter the curve */
+     Change KpExp to alter the curve */
     error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
-     
+
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
@@ -1957,14 +1945,15 @@ void processValues() {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange);
       }
     }
-    
+
     // Maximum integral reduces as RPM increases - curve shape is generated by KiExp
     controls.maxIntegral = pow(controls.rpmScale, KiExp);
-    
+
     // Limit the integral to controls.maxIntegral, clip it if it is too high
     if ( integral >= controls.maxIntegral ) {
       integral = controls.maxIntegral;
-    } else if ( integral < 0 ) {
+    } 
+    else if ( integral < 0 ) {
       integral = 0;
     }
 
@@ -1975,18 +1964,20 @@ void processValues() {
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
       error = (error * (float)settings.boostBias) / 10; 
-    } else if ((error<0) && (scaledInput > PIDMaxBoost)) {
+    } 
+    else if ((error<0) && (scaledInput > PIDMaxBoost)) {
       error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
     }
 
     /* PID Output */
     controls.pidOutput = error + integral - derivate;
 
-  } else {
+  } 
+  else {
     controls.pidOutput = 0;
   }
 
-  
+
   now = millis();
   controls.lastTime = now;
 
@@ -2034,8 +2025,8 @@ void updateOutputValues(bool showDebug) {
   // PWM output pins
   analogWrite(PIN_VNT_N75,controls.vntPositionRemapped);
   analogWrite(PIN_AUX_N75,controls.auxOutput);    
-/*  digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);   -- Disable unused outputs for the time being
-  digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW); */
+  /*  digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);   -- Disable unused outputs for the time being
+   digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW); */
 }
 
 void updateLCD() { 
@@ -2186,89 +2177,88 @@ bool freezeModeEnabled=false;
 
 unsigned char counter;
 static char testsig;
+unsigned long lastloop = 0;
 
 void loop() {
   static char lastPage;
-  // Switch operating mode/maps according to external button
-  // modeSelect();
-  // read sensor data (moved off from interrupt handler)
+
+  calcRpm();
+
   readValues();
-  if (controls.rpmActual == 0) {
-    // engine is not running, read map values manually
-    readValuesMap();
-  }
+  readValuesMap();
 
   counter++;
   unsigned char data = 0;
-  unsigned long start = millis();
 
-  // User interface for configuration and monitoring
-  if (Serial.available()) {
-    data = Serial.read();
-    if (data >= '0' && data <= '9') {
-      page = data - '0';
-    }   
-    else if (data == ':') {
-      freezeModeEnabled = !freezeModeEnabled;
-    } 
-    else if (data == '#') {
-      page = 10;
-    } 
-    else if (data == 27) {
+  /* we are only going to actualy process every MAIN_LOOP_DELAY milliseconds though we will read from our sensors every loop
+     This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
+     single time */
+     
+  if ((millis() - lastloop) >= MAIN_LOOP_DELAY) {  
+
+    lastloop = millis();
+
+    // User interface for configuration and monitoring
+    if (Serial.available()) {
       data = Serial.read();
-      if (data == '[') {
+      if (data >= '0' && data <= '9') {
+        page = data - '0';
+      }   
+      else if (data == ':') {
+        freezeModeEnabled = !freezeModeEnabled;
+      } 
+      else if (data == '#') {
+        page = 10;
+      } 
+      else if (data == 27) {
         data = Serial.read();
-        switch (data) {
-        case 'A':
-          data = 'k';
-          break;
-        case 'B':
-          data = 'j';
-          break;
-        case 'C':
-          data = 'l';
-          break;
-        case 'D':
-          data = 'h';
-          break;
+        if (data == '[') {
+          data = Serial.read();
+          switch (data) {
+          case 'A':
+            data = 'k';
+            break;
+          case 'B':
+            data = 'j';
+            break;
+          case 'C':
+            data = 'l';
+            break;
+          case 'D':
+            data = 'h';
+            break;
 
-        default:
-          data = 0;
+          default:
+            data = 0;
+          }
         }
       }
+      lastPage = page;
     }
-    lastPage = page;
+    displayPage(page,data);   
+
+    if (freezeModeEnabled) {
+      Serial.print("\rFREEZE ");
+    } 
+    else {
+      // update output values according to input
+      processValues();
+      updateOutputValues(false);
+    }
+
+    if (counter%4 == 0) {
+      updateLCD();
+    }
+
+    static char oldMode = -1;
+
+    if (oldMode != controls.mode) {
+      oldMode = controls.mode;    
+      displayPage(lastPage,'.');
+    }   
   }
-  displayPage(page,data);   
-
-  if (freezeModeEnabled) {
-    Serial.print("\rFREEZE ");
-  } 
-  else {
-    // update output values according to input
-    processValues();
-  }
-
-  updateOutputValues(false);
-
-  if (counter%4 == 0) {
-    updateLCD();
-  }
-
-  static char oldMode = -1;
-
-  if (oldMode != controls.mode) {
-    oldMode = controls.mode;    
-    displayPage(lastPage,'.');
-  }   
-
-  unsigned long diff = millis()-start;
-  if ((int)MAIN_LOOP_DELAY-(int)diff>0 && diff < 3000) {
-    delay(MAIN_LOOP_DELAY-diff);
-  }
-/*   testsig = !testsig;
-  digitalWrite(PIN_TESTSIG,(testsig?HIGH:LOW));  */
 }
+
 
 
 
