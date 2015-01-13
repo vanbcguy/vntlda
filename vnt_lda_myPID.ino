@@ -62,7 +62,7 @@
  clipping for the integral component - we limit the maximum integral based on RPM.  Changing KiExp will adjust the shape of the curve.  KpExp
  changes will adjust the proportional gain based on RPM */
 #define KiExp 0.8
-#define KpExp 0.8
+#define KpExp 0.3
 #define rpmSpool 1500
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
@@ -73,12 +73,13 @@
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
-#define rpmResolution 20
+#define rpmResolution 6
 
+/*  Why are these declared twice??
 void readValuesMap();
 void updateOutputValues(bool showDebug);
 void pageAbout(char key);
-
+*/
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -88,7 +89,8 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 15 
+#define AVG_MAX 5 
+#define EGT_AVG_MAX 3
 
 #define STATUS_IDLE 1
 #define STATUS_CRUISING 2
@@ -428,7 +430,7 @@ void setPwmFrequency(int pin, int divisor) {
 }
 
 
-volatile unsigned long teethNo = 0;
+volatile unsigned int teethNo = 0;
 
 void rpmTrigger() {
   // increase the tooth count whenever we see a tooth go by
@@ -446,7 +448,6 @@ void calcRpm() {
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
-
   }
   
   if ((micros() - rpmMicros) > (2 * 1000000)) {
@@ -511,8 +512,6 @@ void setup_lcd() {
 }
 
 void setup() {
-  modeSelect();
-  digitalWrite(PIN_HEARTBEAT,HIGH);
   setup_lcd();
 
   // Print a message to the LCD.
@@ -541,10 +540,6 @@ void setup() {
   pinMode(PIN_OUTPUT2,OUTPUT);
   pinMode(PIN_VNT_N75,OUTPUT);
   pinMode(PIN_AUX_N75,OUTPUT);
-  /*  pinMode(PIN_TESTSIG,OUTPUT); */
-
-  // pinMode(PIN_BUTTON_MODE_SELECT,INPUT);
-  // digitalWrite(PIN_BUTTON_MODE_SELECT,HIGH); // pullup for mode select button
 
   pinMode(PIN_TPS,INPUT);
   pinMode(PIN_MAP,INPUT);
@@ -575,7 +570,7 @@ void setup() {
   Serial.write(clearScreen,sizeof(clearScreen));
   tpsAvg.size=AVG_MAX;
   mapAvg.size=AVG_MAX;
-  egtAvg.size=AVG_MAX;
+  egtAvg.size=EGT_AVG_MAX; 
 
   // clear screen
   lcd.write(0xFE);
@@ -584,25 +579,6 @@ void setup() {
   digitalWrite(PIN_HEARTBEAT,LOW);  
 
   pageAbout(1); // force output
-}
-
-void modeSelect() {
-  //  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
-  controls.mode = 1;
-  editorMaps = editorMaps1;
-  auxMap = auxMap1;
-  boostRequest = boostRequest1;
-  boostDCMax = boostDCMax1;
-  boostDCMin = boostDCMin1;
-  /*  } 
-   else {
-   controls.mode = 2;
-   editorMaps = editorMaps2;
-   auxMap = auxMap2;
-   boostRequest = boostRequest2;
-   boostDCMax = boostDCMax2;
-   boostDCMin = boostDCMin2;    
-   } */
 }
 
 void loadDefaults() {
@@ -1751,17 +1727,22 @@ void pageServoFineTune(char key) {
 
 
 int getFilteredAvarage(struct avgStruct *a) {
+/* The original code had a feature to discard high/low readings - I think this is left over from that? 
   int minVal = 0;
   int maxVal = 255;
+*/
   long int avgAll = 0;
 
   for (int i=0; i < a->size;i++) {
+    
+  /* The original code had a feature to discard high/low readings - I think this is left over from that? 
     if (a->avgData[i] < minVal) {
       minVal = a->avgData[i];
     } 
     if (a->avgData[i] > maxVal) {
       maxVal = a->avgData[i];
     } 
+  */
     avgAll += a->avgData[i];
   }
   avgAll = (int)(avgAll / a->size);
@@ -1769,18 +1750,24 @@ int getFilteredAvarage(struct avgStruct *a) {
 
 }
 
+/* unused variables?
 unsigned int lastOut = 0;
 unsigned char lastPos = 0;
+*/
 
-
-void readValues() {
-  controls.temp1 = thermocouple.readCelsius();
-  controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
+void readValuesTps() {
 
   tpsAvg.pos++;
   if (tpsAvg.pos>=tpsAvg.size)
     tpsAvg.pos=0;
   tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
+
+}
+
+void readValuesEgt() {
+  controls.temp1 = thermocouple.readCelsius();
+  // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
+  controls.temp2 = 0; // disabled for now as we aren't using it
 
   egtAvg.pos++;
   if (egtAvg.pos>=egtAvg.size)
@@ -1807,6 +1794,7 @@ unsigned char accelVal = 0;
 
 void processValues() {
   
+  /* We aren't using this...
   if (!controls.output1Enabled) {
     if (controls.temp1 >= settings.output1EnableTemp) {
       controls.output1Enabled = true;
@@ -1828,7 +1816,8 @@ void processValues() {
       controls.output2Enabled = false;
     }
   }
-
+  */
+  
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
 
@@ -1843,8 +1832,10 @@ void processValues() {
   controls.egtInput = getFilteredAvarage(&egtAvg);
   controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
 
+  /* aren't using this either
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
-
+  */
+  
   // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
@@ -2177,24 +2168,26 @@ unsigned char counter;
 unsigned long lastloop = 0;
 
 void loop() {
+  
   static char lastPage;
 
   calcRpm();
-
-  readValues();
+  readValuesTps();
   readValuesMap();
-
-  counter++;
-  unsigned char data = 0;
 
   /* we are only going to actualy process every MAIN_LOOP_DELAY milliseconds though we will read from our sensors every loop
      This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
      single time */
      
   if ((millis() - lastloop) >= MAIN_LOOP_DELAY) {  
-
-    lastloop = millis();
-
+    
+    // Reading the thermocouple takes a bit; reading it a few times per second is sufficient
+    readValuesEgt();
+    
+    unsigned char data = 0;
+    
+    counter++;
+    
     // User interface for configuration and monitoring
     if (Serial.available()) {
       data = Serial.read();
@@ -2243,16 +2236,12 @@ void loop() {
       updateOutputValues(false);
     }
 
+    // Every 4th run (4 x MAIN_LOOP_DELAY) we will update the LCD - every 0.4 seconds with the default settings
     if (counter%4 == 0) {
       updateLCD();
     }
-
-    static char oldMode = -1;
-
-    if (oldMode != controls.mode) {
-      oldMode = controls.mode;    
-      displayPage(lastPage,'.');
-    }   
+    
+    lastloop = millis();
   }
 }
 
