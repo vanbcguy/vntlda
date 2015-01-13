@@ -253,10 +253,6 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define MAIN_LOOP_DELAY 100 // ms
 #define TEMP_HYSTERESIS 3
 
-// used for RPM counting
-volatile unsigned long rpmLastTeethSeenTime = 0;
-volatile unsigned long rpmNow = 0;
-
 // contains configurable data. Can be stored in eeprom
 struct settingsStruct {
   int tpsMin;
@@ -451,6 +447,11 @@ void calcRpm() {
     rpmMicros = micros();
     teethNo = 0;
 
+  }
+  
+  if ((micros() - rpmMicros) > (2 * 1000000)) {
+    // No RPM signal seen for 2 seconds, engine is not running or is running veeeery slowly
+    controls.rpmActual = 0;
   }
 }
 
@@ -1805,10 +1806,7 @@ void readValuesMap() {
 unsigned char accelVal = 0;
 
 void processValues() {
-  if (micros() - rpmLastTeethSeenTime > 200000) {
-    // engine not running
-    controls.rpmActual = 0;  
-  }
+  
   if (!controls.output1Enabled) {
     if (controls.temp1 >= settings.output1EnableTemp) {
       controls.output1Enabled = true;
@@ -2176,7 +2174,6 @@ unsigned char status=0;
 bool freezeModeEnabled=false;
 
 unsigned char counter;
-static char testsig;
 unsigned long lastloop = 0;
 
 void loop() {
