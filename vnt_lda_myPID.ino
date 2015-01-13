@@ -29,7 +29,7 @@
 #define PIN_AUX_N75 3
 #define PIN_OUTPUT1 7
 #define PIN_OUTPUT2 12
-#define PIN_TESTSIG 1
+/* #define PIN_TESTSIG 1 */
 
 /*#define PIN_BUTTON_MODE_SELECT 10 */
 
@@ -61,8 +61,8 @@ These should be moved in to the GUI settings rather than defined in code */
 /* Set rpmSpool to the RPM where your turbo starts to spool.  RPM proportional controls will be inactive below that RPM.  KiExp will adjust the
 clipping for the integral component - we limit the maximum integral based on RPM.  Changing KiExp will adjust the shape of the curve.  KpExp
 changes will adjust the proportional gain based on RPM */
-#define KiExp 0.2
-#define KpExp 0.75
+#define KiExp 0.8
+#define KpExp 0.8
 #define rpmSpool 1500
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
@@ -553,7 +553,7 @@ void setup() {
   pinMode(PIN_OUTPUT2,OUTPUT);
   pinMode(PIN_VNT_N75,OUTPUT);
   pinMode(PIN_AUX_N75,OUTPUT);
-  pinMode(PIN_TESTSIG,OUTPUT);
+/*  pinMode(PIN_TESTSIG,OUTPUT); */
 
   // pinMode(PIN_BUTTON_MODE_SELECT,INPUT);
   // digitalWrite(PIN_BUTTON_MODE_SELECT,HIGH); // pullup for mode select button
@@ -1390,7 +1390,7 @@ void pageDataLogger(char key) {
     Serial.print(",");
     Serial.print(controls.boostCalculatedD,DEC);
     Serial.print(",");
-    Serial.print(controls.rpmScale,DEC);
+    Serial.print(controls.maxIntegral,DEC);
     Serial.print(",");
     Serial.print(controls.pidOutput,DEC);
     Serial.print(",");
@@ -2034,8 +2034,8 @@ void updateOutputValues(bool showDebug) {
   // PWM output pins
   analogWrite(PIN_VNT_N75,controls.vntPositionRemapped);
   analogWrite(PIN_AUX_N75,controls.auxOutput);    
-  digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);
-  digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW);
+/*  digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);   -- Disable unused outputs for the time being
+  digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW); */
 }
 
 void updateLCD() { 
@@ -2266,8 +2266,8 @@ void loop() {
   if ((int)MAIN_LOOP_DELAY-(int)diff>0 && diff < 3000) {
     delay(MAIN_LOOP_DELAY-diff);
   }
-  testsig = !testsig;
-  digitalWrite(PIN_TESTSIG,(testsig?HIGH:LOW));  
+/*   testsig = !testsig;
+  digitalWrite(PIN_TESTSIG,(testsig?HIGH:LOW));  */
 }
 
 
