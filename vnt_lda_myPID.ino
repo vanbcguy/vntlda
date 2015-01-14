@@ -76,10 +76,10 @@
 #define rpmResolution 8
 
 /*  Why are these declared twice??
-void readValuesMap();
-void updateOutputValues(bool showDebug);
-void pageAbout(char key);
-*/
+ void readValuesMap();
+ void updateOutputValues(bool showDebug);
+ void pageAbout(char key);
+ */
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -252,7 +252,8 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define METHOD_PID 1
 #define METHOD_SIMULATE_ACTUATOR 2
 
-#define MAIN_LOOP_DELAY 100 // ms
+#define SERIAL_DELAY 250 // ms
+#define EXEC_DELAY 100 //ms
 #define DISPLAY_DELAY 500 // ms
 
 #define TEMP_HYSTERESIS 3
@@ -451,7 +452,7 @@ void calcRpm() {
     rpmMicros = micros();
     teethNo = 0;
   }
-  
+
   if ((micros() - rpmMicros) > (2 * 1000000)) {
     // No RPM signal seen for 2 seconds, engine is not running or is running veeeery slowly
     controls.rpmActual = 0;
@@ -1140,14 +1141,6 @@ void pageStatusAndAdaption(char key) {
   printFromFlash(ANSIclearEolAndLf);
   printFromFlash(ANSIclearEolAndLf);
 
-  /*
-  if (settings.options & MODE_DUTYCYCLEMAP) {
-   printStringWithPadding(statusVNTactualDutyCycle,19,' ');
-   } 
-   else {
-   printStringWithPadding(statusVNTactualTargetPress,19,' ');
-   }
-   */
   printPads(8,' '); 
 
   if (settings.options & OPTIONS_VANESOPENIDLE) {
@@ -1351,37 +1344,33 @@ void pageExport(char key) {
   }
 }
 
-unsigned char i;
 
 void pageDataLogger(char key) {
-  i++;
-  if (i % 2 == 0) {
-    Serial.write(2); // stx
-    Serial.print(controls.mapCorrected,DEC);
-    Serial.print(",");
-    Serial.print(controls.vntTargetPressure,DEC);
-    Serial.print(",");
-    Serial.print(controls.vntPositionRemapped,DEC);
-    Serial.print(",");
-    Serial.print(controls.tpsCorrected,DEC);
-    Serial.print(",");
-    Serial.print(controls.rpmActual,DEC);
-    Serial.print(",");
-    Serial.print(controls.temp1,DEC);
-    Serial.print(",");
-    Serial.print(controls.boostCalculatedP,DEC);
-    Serial.print(",");
-    Serial.print(controls.boostCalculatedI,DEC);
-    Serial.print(",");
-    Serial.print(controls.boostCalculatedD,DEC);
-    Serial.print(",");
-    Serial.print(controls.maxIntegral,DEC);
-    Serial.print(",");
-    Serial.print(controls.pidOutput,DEC);
-    Serial.print(",");
-    Serial.print(millis()/100,DEC); 
-    Serial.write(3);
-  }
+  Serial.write(2); // stx
+  Serial.print(controls.mapCorrected,DEC);
+  Serial.print(",");
+  Serial.print(controls.vntTargetPressure,DEC);
+  Serial.print(",");
+  Serial.print(controls.vntPositionRemapped,DEC);
+  Serial.print(",");
+  Serial.print(controls.tpsCorrected,DEC);
+  Serial.print(",");
+  Serial.print(controls.rpmActual,DEC);
+  Serial.print(",");
+  Serial.print(controls.temp1,DEC);
+  Serial.print(",");
+  Serial.print(controls.boostCalculatedP,DEC);
+  Serial.print(",");
+  Serial.print(controls.boostCalculatedI,DEC);
+  Serial.print(",");
+  Serial.print(controls.boostCalculatedD,DEC);
+  Serial.print(",");
+  Serial.print(controls.maxIntegral,DEC);
+  Serial.print(",");
+  Serial.print(controls.pidOutput,DEC);
+  Serial.print(",");
+  Serial.print(millis()/100,DEC); 
+  Serial.write(3);
 }
 
 void printMapAxis(unsigned char axisType,unsigned char idx,bool verbose) {
@@ -1753,7 +1742,7 @@ int getFilteredAvarage(struct avgStruct *a) {
   long int avgAll = 0;
 
   for (int i=0; i < a->size;i++) {
-    
+
     if (a->avgData[i] < minVal) {
       minVal = a->avgData[i];
     } 
@@ -1769,9 +1758,9 @@ int getFilteredAvarage(struct avgStruct *a) {
 }
 
 /* unused variables?
-unsigned int lastOut = 0;
-unsigned char lastPos = 0;
-*/
+ unsigned int lastOut = 0;
+ unsigned char lastPos = 0;
+ */
 
 void readValuesTps() {
 
@@ -1811,31 +1800,31 @@ void readValuesMap() {
 unsigned char accelVal = 0;
 
 void processValues() {
-  
-  /* We aren't using this...
-  if (!controls.output1Enabled) {
-    if (controls.temp1 >= settings.output1EnableTemp) {
-      controls.output1Enabled = true;
-    }
-  } 
-  else {
-    if (controls.temp1 <= settings.output1EnableTemp-TEMP_HYSTERESIS) {
-      controls.output1Enabled = false;
-    }
-  }
 
-  if (!controls.output2Enabled) {
-    if (controls.temp2 >= settings.output2EnableTemp) {
-      controls.output2Enabled = true;
-    }
-  } 
-  else {
-    if (controls.temp2 <= settings.output2EnableTemp-TEMP_HYSTERESIS) {
-      controls.output2Enabled = false;
-    }
-  }
-  */
-  
+  /* We aren't using this...
+   if (!controls.output1Enabled) {
+   if (controls.temp1 >= settings.output1EnableTemp) {
+   controls.output1Enabled = true;
+   }
+   } 
+   else {
+   if (controls.temp1 <= settings.output1EnableTemp-TEMP_HYSTERESIS) {
+   controls.output1Enabled = false;
+   }
+   }
+   
+   if (!controls.output2Enabled) {
+   if (controls.temp2 >= settings.output2EnableTemp) {
+   controls.output2Enabled = true;
+   }
+   } 
+   else {
+   if (controls.temp2 <= settings.output2EnableTemp-TEMP_HYSTERESIS) {
+   controls.output2Enabled = false;
+   }
+   }
+   */
+
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
 
@@ -1851,9 +1840,9 @@ void processValues() {
   controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
 
   /* aren't using this either
-  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
-  */
-  
+   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
+   */
+
   // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
@@ -2179,29 +2168,26 @@ void displayPage(char page,char data) {
   }
 }
 
-unsigned char status=0;
 bool freezeModeEnabled=false;
 
-unsigned int lastloop = 0;
-unsigned int displayloop = 0;
+unsigned int serialLoop = 0;
+unsigned int execLoop = 0;
+unsigned int displayLoop = 0;
 
 void loop() {
-  
+
   static char lastPage;
 
   calcRpm();
   readValuesTps();
   readValuesMap();
 
-  /* we are only going to actualy process every MAIN_LOOP_DELAY milliseconds though we will read from our sensors every loop
-     This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
-     single time */
-     
-  if ((millis() - lastloop) >= MAIN_LOOP_DELAY) {  
-    
-    // Reading the thermocouple takes a bit; reading it a few times per second is sufficient
-    readValuesEgt();
-    
+  /* we are only going to actualy process every SERIAL_LOOP_DELAY milliseconds though we will read from our sensors every loop
+   This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
+   single time */
+
+  if ((millis() - serialLoop) >= SERIAL_DELAY) {  
+
     unsigned char data = 0;
 
     // User interface for configuration and monitoring
@@ -2241,25 +2227,33 @@ void loop() {
       }
       lastPage = page;
     }
-    displayPage(page,data);   
+    displayPage(page,data);     
+    serialLoop = millis();
+  }
 
+  if ((millis() - execLoop) >= EXEC_DELAY) {
+    // We will actually process our values and change actuators every EXEC_DELAY milliseconds
     if (freezeModeEnabled) {
       Serial.print("\rFREEZE ");
     } 
     else {
+      // Reading the thermocouple takes a bit; reading it a few times per second is sufficient
+      readValuesEgt();
+
       // update output values according to input
       processValues();
       updateOutputValues(false);
-    }    
-    lastloop = millis();
+    }  
+    execLoop = millis();
   }
-  
-  if ((millis() - displayloop) >= DISPLAY_DELAY) {
+
+  if ((millis() - displayLoop) >= DISPLAY_DELAY) {
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
-    displayloop = millis();
+    displayLoop = millis();
   }
 }
+
 
 
 
