@@ -73,7 +73,7 @@
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
-#define rpmResolution 6
+#define rpmResolution 8
 
 /*  Why are these declared twice??
 void readValuesMap();
@@ -253,6 +253,8 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define METHOD_SIMULATE_ACTUATOR 2
 
 #define MAIN_LOOP_DELAY 100 // ms
+#define DISPLAY_DELAY 500 // ms
+
 #define TEMP_HYSTERESIS 3
 
 // contains configurable data. Can be stored in eeprom
@@ -479,24 +481,6 @@ void modeSelect() {
   boostDCMax = boostDCMax1;
 
   boostDCMin = boostDCMin1;
-
-  /*  }  
-
-   else {
-
-   controls.mode = 2;
-
-   editorMaps = editorMaps2;
-
-   auxMap = auxMap2;
-
-   boostRequest = boostRequest2;
-
-   boostDCMax = boostDCMax2;
-
-   boostDCMin = boostDCMin2;     
-
-   } */
 
 }
 
@@ -2199,7 +2183,8 @@ unsigned char status=0;
 bool freezeModeEnabled=false;
 
 unsigned char counter;
-unsigned long lastloop = 0;
+unsigned int lastloop = 0;
+unsigned int displayloop = 0;
 
 void loop() {
   
@@ -2268,14 +2253,14 @@ void loop() {
       // update output values according to input
       processValues();
       updateOutputValues(false);
-    }
-
-    // Every 4th run (4 x MAIN_LOOP_DELAY) we will update the LCD - every 0.4 seconds with the default settings
-    if (counter%4 == 0) {
-      updateLCD();
-    }
-    
+    }    
     lastloop = millis();
+  }
+  
+  if ((millis() - displayloop) >= DISPLAY_DELAY) {
+    // We will only update the LCD every DISPLAY_DELAY milliseconds
+    updateLCD();
+    displayloop = millis();
   }
 }
 
