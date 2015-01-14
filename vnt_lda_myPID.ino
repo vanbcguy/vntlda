@@ -1347,9 +1347,9 @@ void pageExport(char key) {
 
 void pageDataLogger(char key) {
   Serial.write(2); // stx
-  Serial.print(controls.mapCorrected,DEC);
+  Serial.print(toKpaMAP(controls.mapCorrected),DEC);
   Serial.print(",");
-  Serial.print(controls.vntTargetPressure,DEC);
+  Serial.print(toKpaMAP(controls.vntTargetPressure),DEC);
   Serial.print(",");
   Serial.print(controls.vntPositionRemapped,DEC);
   Serial.print(",");
@@ -1369,7 +1369,7 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.pidOutput,DEC);
   Serial.print(",");
-  Serial.print(millis()/100,DEC); 
+  Serial.print(millis()/10,DEC); 
   Serial.write(3);
 }
 
