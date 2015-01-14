@@ -1344,6 +1344,9 @@ void pageExport(char key) {
   }
 }
 
+unsigned int execTimeRead = 0;
+unsigned int execTimeDisplay = 0;
+unsigned int execTimeAct = 0;
 
 void pageDataLogger(char key) {
   Serial.write(2); // stx
@@ -1370,6 +1373,12 @@ void pageDataLogger(char key) {
   Serial.print(controls.pidOutput,DEC);
   Serial.print(",");
   Serial.print(millis()/10,DEC); 
+  Serial.print(",");
+  Serial.print(execTimeRead,DEC);
+  Serial.print(",");
+  Serial.print(execTimeAct,DEC);
+  Serial.print(",");
+  Serial.print(execTimeDisplay,DEC);
   Serial.write(3);
 }
 
@@ -1974,7 +1983,7 @@ void processValues() {
   }
 
 
-  now = millis();
+  // now = millis();   // This was set above, if we set it again here we aren't counting the time we spent processing?
   controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
@@ -2174,13 +2183,19 @@ unsigned int serialLoop = 0;
 unsigned int execLoop = 0;
 unsigned int displayLoop = 0;
 
+
 void loop() {
 
   static char lastPage;
-
+  
+  //We started executing at...
+  execTimeRead=millis();
+  
   calcRpm();
   readValuesTps();
   readValuesMap();
+  
+  execTimeRead=millis() - execTimeRead;
 
   /* we are only going to actualy process every SERIAL_LOOP_DELAY milliseconds though we will read from our sensors every loop
    This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
@@ -2232,25 +2247,35 @@ void loop() {
   }
 
   if ((millis() - execLoop) >= EXEC_DELAY) {
+    
+    execTimeAct = millis();
+    
+    // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
+    readValuesEgt();
+    
     // We will actually process our values and change actuators every EXEC_DELAY milliseconds
     if (freezeModeEnabled) {
       Serial.print("\rFREEZE ");
     } 
     else {
-      // Reading the thermocouple takes a bit; reading it a few times per second is sufficient
-      readValuesEgt();
-
       // update output values according to input
       processValues();
       updateOutputValues(false);
     }  
     execLoop = millis();
+    
+    execTimeAct = millis() - execTimeAct;
   }
 
   if ((millis() - displayLoop) >= DISPLAY_DELAY) {
+    
+    execTimeDisplay = millis();
+    
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
     displayLoop = millis();
+    
+    execTimeDisplay = millis() - execTimeDisplay;
   }
 }
 
