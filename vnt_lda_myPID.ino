@@ -2182,7 +2182,6 @@ void displayPage(char page,char data) {
 unsigned char status=0;
 bool freezeModeEnabled=false;
 
-unsigned char counter;
 unsigned int lastloop = 0;
 unsigned int displayloop = 0;
 
@@ -2204,9 +2203,7 @@ void loop() {
     readValuesEgt();
     
     unsigned char data = 0;
-    
-    counter++;
-    
+
     // User interface for configuration and monitoring
     if (Serial.available()) {
       data = Serial.read();
