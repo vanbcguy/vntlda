@@ -529,6 +529,23 @@ void setup_lcd() {
   delay(10);   // we suggest putting delays after each command 
 }
 
+
+float Kp;
+float Ki;
+float Kd;
+
+void calcKp() {
+  Kp = (float)(settings.boostKp)/PIDControlRatio;
+}
+
+void calcKi() {
+  Ki = (float)(settings.boostKi)/(PIDControlRatio * 500);
+}
+
+void calcKd() {
+  Kd = (float)(settings.boostKd * 100)/PIDControlRatio; 
+}
+
 void setup() {
   modeSelect();
   setup_lcd();
@@ -594,6 +611,11 @@ void setup() {
   // clear screen
   lcd.write(0xFE);
   lcd.write(0x58);
+  
+  //initial setup of kp/ki/kd
+  calcKp();
+  calcKi();
+  calcKd();
 
   digitalWrite(PIN_HEARTBEAT,LOW);  
 
@@ -1650,21 +1672,27 @@ void pageServoFineTune(char key) {
   switch (key) {
   case 'p':
     if (settings.boostKp>0) settings.boostKp--;
+    calcKp();
     break;
   case 'P':
     if (settings.boostKp<1000) settings.boostKp++;
+    calcKp();
     break;
   case 'i':
     if (settings.boostKi>0) settings.boostKi--;
+    calcKi();
     break;
   case 'I':
     if (settings.boostKi<500) settings.boostKi++;
+    calcKi();
     break;
   case 'd':
     if (settings.boostKd>0) settings.boostKd--;
+    calcKd();
     break;
   case 'D':
     if (settings.boostKd<255) settings.boostKd++;
+    calcKd();
     break;
 
   case 'b':
@@ -1803,8 +1831,6 @@ void readValuesMap() {
   mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
 }
 
-unsigned char accelVal = 0;
-
 void processValues() {
 
   /* We aren't using this...
@@ -1866,10 +1892,6 @@ void processValues() {
   static float integral;
   static float derivate;
 
-  float Kp;
-  float Ki;
-  float Kd;
-
   float controlSpan;
   float inputSpan;
 
@@ -1878,10 +1900,6 @@ void processValues() {
   float scaledBias;
 
   float toControlVNT;
-
-  Kp = (float)(settings.boostKp)/PIDControlRatio;
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 500);  // Need very small values for Ki
-  Kd = (float)(settings.boostKd * 100)/PIDControlRatio;    // Need larger values for Kd
 
   /* This is the available span of our DC - we can only go between min and max */
   controlSpan = controls.vntMaxDc - controls.vntMinDc;
