@@ -86,7 +86,7 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 5 
+#define AVG_MAX 10 
 #define EGT_AVG_MAX 3
 
 #define STATUS_IDLE 1
@@ -251,7 +251,7 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 
 #define SERIAL_DELAY 250 // ms
 #define EXEC_DELAY 100 //ms
-#define DISPLAY_DELAY 500 // ms
+#define DISPLAY_DELAY 600 // ms
 
 #define TEMP_HYSTERESIS 3
 
@@ -1364,7 +1364,6 @@ void pageExport(char key) {
 }
 
 unsigned int execTimeRead = 0;
-unsigned int execTimeDisplay = 0;
 unsigned int execTimeAct = 0;
 
 void pageDataLogger(char key) {
@@ -1396,8 +1395,6 @@ void pageDataLogger(char key) {
   Serial.print(execTimeRead,DEC);
   Serial.print(",");
   Serial.print(execTimeAct,DEC);
-  Serial.print(",");
-  Serial.print(execTimeDisplay,DEC);
   Serial.write(3);
 }
 
@@ -2187,9 +2184,9 @@ void displayPage(char page,char data) {
 
 bool freezeModeEnabled=false;
 
-unsigned int serialLoop = 0;
-unsigned int execLoop = 0;
-unsigned int displayLoop = 0;
+unsigned long serialLoop = 0;
+unsigned long execLoop = 0;
+unsigned long displayLoop = 0;
 
 
 void loop() {
@@ -2276,14 +2273,9 @@ void loop() {
   }
 
   if ((millis() - displayLoop) >= DISPLAY_DELAY) {
-    
-    execTimeDisplay = millis();
-    
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
     displayLoop = millis();
-    
-    execTimeDisplay = millis() - execTimeDisplay;
   }
 }
 
