@@ -2188,7 +2188,6 @@ void loop() {
   //We started executing at...
   execTimeRead=millis();
   
-  calcRpm();
   readValuesTps();
   readValuesMap();
   
@@ -2256,6 +2255,7 @@ void loop() {
     } 
     else {
       // update output values according to input
+      calcRpm();
       processValues();
       updateOutputValues(false);
     }  
