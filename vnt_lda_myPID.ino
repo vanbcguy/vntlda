@@ -29,9 +29,6 @@
 #define PIN_AUX_N75 3
 #define PIN_OUTPUT1 7
 #define PIN_OUTPUT2 12
-/* #define PIN_TESTSIG 1 */
-
-/*#define PIN_BUTTON_MODE_SELECT 10 */
 
 #define PIN_LCD 8
 
@@ -446,7 +443,7 @@ void calcRpm() {
   // We don't need to calculate the RPM every single revolution; lets smooth things out a bit eh?
   if (teethNo >=  rpmResolution) {
     // one minute divided by elapsed time times number of teeth seen divided by teeth per rotation
-    controls.rpmActual = ((1000000*60)/(micros() - rpmMicros) * teethNo) / settings.rpmTeethsPerRotation;
+    controls.rpmActual = (1000000 * 60 * teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
 
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
