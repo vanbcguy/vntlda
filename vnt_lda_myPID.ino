@@ -1791,18 +1791,11 @@ int getFilteredAvarage(struct avgStruct *a) {
 
 }
 
-/* unused variables?
- unsigned int lastOut = 0;
- unsigned char lastPos = 0;
- */
-
 void readValuesTps() {
-
   tpsAvg.pos++;
   if (tpsAvg.pos>=tpsAvg.size)
     tpsAvg.pos=0;
   tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
-
 }
 
 void readValuesEgt() {
