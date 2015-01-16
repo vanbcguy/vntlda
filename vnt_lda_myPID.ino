@@ -72,12 +72,6 @@
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
 #define rpmResolution 8
 
-/*  Why are these declared twice??
- void readValuesMap();
- void updateOutputValues(bool showDebug);
- void pageAbout(char key);
- */
-
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
@@ -608,9 +602,7 @@ void setup() {
   mapAvg.size=AVG_MAX;
   egtAvg.size=EGT_AVG_MAX; 
 
-  // clear screen
-  lcd.write(0xFE);
-  lcd.write(0x58);
+
   
   //initial setup of kp/ki/kd
   calcKp();
@@ -618,7 +610,10 @@ void setup() {
   calcKd();
 
   digitalWrite(PIN_HEARTBEAT,LOW);  
-
+  
+  // set up screen
+  void layoutLCD();
+  
   pageAbout(1); // force output
 }
 
@@ -1795,6 +1790,13 @@ void readValuesTps() {
   tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
 }
 
+void readValuesMap() {
+  mapAvg.pos++;
+  if (mapAvg.pos>=mapAvg.size)
+    mapAvg.pos=0;
+  mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
+}
+
 void readValuesEgt() {
   controls.temp1 = thermocouple.readCelsius();
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
@@ -1812,13 +1814,6 @@ void readValuesEgt() {
   else {
     egtAvg.avgData[egtAvg.pos] = controls.temp1;
   } 
-}
-
-void readValuesMap() {
-  mapAvg.pos++;
-  if (mapAvg.pos>=mapAvg.size)
-    mapAvg.pos=0;
-  mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
 }
 
 void processValues() {
@@ -1861,9 +1856,8 @@ void processValues() {
   controls.egtInput = getFilteredAvarage(&egtAvg);
   controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
 
-  /* aren't using this either
-   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
-   */
+  // EGT controls
+  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 
   // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
@@ -1876,7 +1870,7 @@ void processValues() {
     controls.idling = false;
   }
   unsigned long now = millis();
-  float timeChange = (float)(now - controls.lastTime);
+  int timeChange = now - controls.lastTime;
 
   static float error;
   static float integral;
@@ -1984,6 +1978,7 @@ void processValues() {
 
   } 
   else {
+    // We must be over max RPM, open the vanes!
     controls.pidOutput = 0;
   }
 
@@ -2039,7 +2034,11 @@ void updateOutputValues(bool showDebug) {
    digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW); */
 }
 
-void updateLCD() { 
+void layoutLCD() {
+  lcd.write(0xFE);
+  lcd.write(0x58);
+  delay(10);
+  
   position_lcd(3,0);
   lcd.print("/");
   position_lcd(7,0);
@@ -2057,7 +2056,13 @@ void updateLCD() {
 
   position_lcd(12,1);
   lcd.print("A");
+}
 
+
+byte egtState = 0;
+
+void updateLCD() { 
+  
   position_lcd(0,0);
   printn_lcd(toKpaMAP(controls.mapCorrected),3);
 
@@ -2083,29 +2088,38 @@ void updateLCD() {
   printn_lcd(controls.vntPositionRemapped,3);
 
   if (controls.temp1 < EGT_WARN) {
-    // Make the screen green again
-    // set background colour - r/g/b 0-255
-    lcd.write(0xFE);
-    lcd.write(0xD0);
-    lcd.write(64);
-    lcd.write(255);
-    lcd.write((uint8_t)0);
+    if (egtState != 1); {
+      // Make the screen green again if it isn't already
+      // set background colour - r/g/b 0-255
+      lcd.write(0xFE);
+      lcd.write(0xD0);
+      lcd.write(64);
+      lcd.write(255);
+      lcd.write((uint8_t)0);
+      egtState = 1;
+    }
   } 
   else if (controls.temp1 < EGT_ALARM) {
-    // Make the screen orange
-    lcd.write(0xFE);
-    lcd.write(0xD0);
-    lcd.write(255);
-    lcd.write(32);
-    lcd.write((uint8_t)0);
+    if (egtState != 2); {
+      // Make the screen orange if it isn't already
+      lcd.write(0xFE);
+      lcd.write(0xD0);
+      lcd.write(255);
+      lcd.write(32);
+      lcd.write((uint8_t)0);
+      egtState = 2;
+    }
   } 
   else {
-    // Make the screen red
-    lcd.write(0xFE);
-    lcd.write(0xD0);
-    lcd.write(255);
-    lcd.write((uint8_t)0);
-    lcd.write((uint8_t)0);
+    if (egtState != 3); {
+      // Make the screen red if it isn't already
+      lcd.write(0xFE);
+      lcd.write(0xD0);
+      lcd.write(255);
+      lcd.write((uint8_t)0);
+      lcd.write((uint8_t)0);
+      egtState = 3;
+    }
   }        
 }
 
