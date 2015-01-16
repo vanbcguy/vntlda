@@ -72,6 +72,11 @@
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
 #define rpmResolution 8
 
+/* When we come off idle, start with the integral at this value (0-1.0) - this will prime the integral as we undoubtedly want the vanes closed a bit right away.
+ Remember that this will get triggered when shifting gears; you probably don't want to set it to 100% (1.0) or you'll have fully closed vanes with a spun up turbo
+ which will spike the boost through the roof */
+#define OffIdleInt 0.45;
+
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
@@ -1919,7 +1924,7 @@ void processValues() {
 
     controls.vntTargetPressure=0;                      // We don't want any pressure
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = 1.0;                                    // We're going to want boost as soon as we come off idle, prime the system
+    integral = OffIdleInt;                             // We're going to want boost as soon as we come off idle, prime the system
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
 
   } 
