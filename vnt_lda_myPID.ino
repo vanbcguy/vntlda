@@ -238,7 +238,7 @@ unsigned char tempCalibrationMap[] = {
 };
 
 // Also used in NVRAM data store magic header
-const prog_uchar versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.1d."; 
+const prog_uchar versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5."; 
 prog_uchar statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
