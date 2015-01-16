@@ -121,22 +121,7 @@ unsigned char auxMap1[] = {
   0,0,0,0,0,
   0,0,0,0,0,
   0,0,0,0,0,
-  128,128,128,128,128,
-  255,255,255,255,255,
-  00,00,00,                  // lastX,lastY,lastRet
-};
-
-
-unsigned char auxMap2[] = {
-  'M','2','D',
-  0x5,0x8,MAP_AXIS_RPM,MAP_AXIS_EGT,MAP_AXIS_DUTY_CYCLE,     // 01 - new version 
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  128,128,128,128,128,
+  60,60,60,60,255,
   255,255,255,255,255,
   00,00,00,                  // lastX,lastY,lastRet
 };
@@ -145,85 +130,48 @@ unsigned char auxMap2[] = {
 unsigned char boostRequest1[] = {
   'M','2','D',
   0xA,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_KPA,     // 01 - new version 
+  0,20,20,20,20,20,20,20,20,20,
+  0,20,20,20,20,20,20,20,20,20,
   0,40,40,40,40,40,40,40,40,20,
-  0,40,40,40,40,40,40,40,40,20,
-  0,40,40,40,40,40,40,40,40,20,
-  0,65,65,65,65,65,65,65,65,20,
-  0,65,65,65,65,65,65,65,65,20,
-  0,83,83,83,83,83,83,83,83,20,
-  0,83,83,83,83,83,83,83,83,20,
-  0,83,100,100,100,100,100,100,100,20,
-  0,83,100,100,100,100,100,100,100,20,
-  0,83,100,100,100,100,100,100,100,20,
+  0,65,65,65,65,65,65,65,65,40,
+  0,65,65,65,65,65,65,65,65,40,
+  0,83,83,83,83,83,83,83,83,80,
+  0,83,83,83,83,83,83,83,83,90,
+  0,83,100,100,100,100,100,100,100,90,
+  0,50,85,190,185,200,200,200,200,90,
+  0,50,85,190,185,200,200,200,200,90,
   00,00,00,                  // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMax1[] = {
   'M','2','D',
   0x8,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  180,165,165,165,150,150,150,80,
-  180,165,165,165,150,150,150,80,
-  180,165,165,165,150,150,150,80,
-  180,165,165,165,150,150,150,80,
-  180,165,165,165,150,150,150,80,
-  180,165,160,165,150,150,150,80,
-  180,165,160,155,150,150,150,80,
-  180,165,160,155,150,150,150,80,
-  180,165,160,150,150,150,150,80,
-  180,165,155,150,150,150,150,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,200,200,200,200,200,200,80,
+  200,185,180,180,180,180,180,80,
+  200,185,170,170,170,170,170,80,
   00,00,00,                  // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMin1[] = {
   'M','2','D',
   0x8,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  0,60,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  0,90,90,90,90,90,90,90,
-  00,00,00,                  // lastX,lastY,lastRet
-};
-
-
-unsigned char boostRequest2[] = {
-  'M','2','D',
-  0x6,0x6,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_KPA,     // 01 - new version 
-  0,40,40,40,40,20,
-  0,40,40,40,40,20,
-  0,40,40,40,40,20,
-  0,40,40,40,40,20,
-  0,40,40,40,40,20,
-  0,40,40,40,40,20,
-  00,00,00,                  // lastX,lastY,lastRet
-};
-
-unsigned char boostDCMax2[] = {
-  'M','2','D',
-  0x6,0x6,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  128,128,128,128,128,128,
-  128,128,128,128,128,128,
-  128,128,128,128,128,128,
-  128,128,128,128,128,128,
-  128,128,128,128,128,128,
-  128,128,128,128,128,128,
-  00,00,00,                  // lastX,lastY,lastRet
-};
-
-unsigned char boostDCMin2[] = {
-  'M','2','D',
-  0xA,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  40,60,90,90,90,90,
-  90,90,90,90,90,90,
-  90,90,90,90,90,90,
-  90,90,90,90,90,90,
-  90,90,90,90,90,90,
-  90,90,90,90,90,90,
+  0,0,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
+  0,70,70,70,70,70,70,70,
   00,00,00,                  // lastX,lastY,lastRet
 };
 
@@ -238,7 +186,7 @@ unsigned char tempCalibrationMap[] = {
 };
 
 // Also used in NVRAM data store magic header
-const prog_uchar versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5."; 
+const prog_uchar versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5a."; 
 prog_uchar statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -271,7 +219,6 @@ struct settingsStruct {
   unsigned char outDamp;
   int output1EnableTemp;
   int output2EnableTemp;
-  char controlMethod;  
   char options;
   int boostKp;
   int boostKi;
@@ -352,8 +299,6 @@ char *pages[] = {
 unsigned char **editorMaps;
 unsigned char *editorMaps1[]={
   boostRequest1,boostDCMin1,boostDCMax1,auxMap1,tempCalibrationMap};
-unsigned char *editorMaps2[]={
-  boostRequest2,boostDCMin2,boostDCMax2,auxMap2,tempCalibrationMap};
 
 unsigned char clearScreen[] =  { 
   27,'[','2','J',27,'[','H'};
@@ -631,7 +576,6 @@ void loadDefaults() {
   settings.egtMin = 0;
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
-  settings.controlMethod = METHOD_PID;
   settings.options = 0;
   settings.inDamp = 0;
   settings.outDamp = 0;
@@ -789,11 +733,6 @@ void saveToEEPROM() {
   ofs += EEPROMwriteData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
   ofs += EEPROMwriteData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
 
-  ofs += EEPROMwriteData(ofs,(byte*)&auxMap2,sizeof(auxMap2));    
-  ofs += EEPROMwriteData(ofs,(byte*)&boostRequest2,sizeof(boostRequest2));
-  ofs += EEPROMwriteData(ofs,(byte*)&boostDCMin2,sizeof(boostDCMin2));
-  ofs += EEPROMwriteData(ofs,(byte*)&boostDCMax2,sizeof(boostDCMax2));
-
   ofs += EEPROMwriteData(ofs,(byte*)&tempCalibrationMap,sizeof(tempCalibrationMap));
 
   printFromFlash(ANSIclearEolAndLf);
@@ -828,11 +767,6 @@ bool loadFromEEPROM(bool force) {
   ofs += EEPROMreadData(ofs,(byte*)&boostRequest1,sizeof(boostRequest1));   
   ofs += EEPROMreadData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
   ofs += EEPROMreadData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
-
-  ofs += EEPROMreadData(ofs,(byte*)&auxMap2,sizeof(auxMap2));
-  ofs += EEPROMreadData(ofs,(byte*)&boostRequest2,sizeof(boostRequest2));   
-  ofs += EEPROMreadData(ofs,(byte*)&boostDCMin2,sizeof(boostDCMin2));
-  ofs += EEPROMreadData(ofs,(byte*)&boostDCMax2,sizeof(boostDCMax2));
 
   ofs += EEPROMreadData(ofs,(byte*)&tempCalibrationMap,sizeof(tempCalibrationMap));
 
@@ -1181,14 +1115,6 @@ void pageStatusAndAdaption(char key) {
   }
   printFromFlash(statusVNTOutputInverted);
   printFromFlash(ANSIclearEolAndLf);
-
-  printPads(8,' ');
-  if (settings.controlMethod == METHOD_DUTYCYCLEMAP )
-    printFromFlash(statusControlMethodDC);
-  if (settings.controlMethod == METHOD_PID )
-    printFromFlash(statusControlMethodPID);
-  if (settings.controlMethod == METHOD_SIMULATE_ACTUATOR )
-    printFromFlash(statusControlMethodActuator);
 
   printFromFlash(ANSIclearEolAndLf);
   printFromFlash(ANSIclearEolAndLf);
