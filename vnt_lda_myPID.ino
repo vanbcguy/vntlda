@@ -1919,11 +1919,11 @@ void processValues() {
 
     controls.vntTargetPressure=0;                      // We don't want any pressure
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = 0;                                      // keep the integral at zero
+    integral = 1.0;                                    // We're going to want boost as soon as we come off idle, prime the system
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
 
   } 
-  else if ( controls.rpmActual <=settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
+  else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
 
     // Normal running mode
 
