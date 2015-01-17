@@ -85,7 +85,7 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 
 // Calculate avarage values 
-#define AVG_MAX 10 
+#define AVG_MAX 15 
 #define EGT_AVG_MAX 3
 
 #define STATUS_IDLE 1
@@ -1993,6 +1993,25 @@ void layoutLCD() {
 byte egtState = 0;
 
 void updateLCD() { 
+  // temp added back
+  position_lcd(3,0);
+  lcd.print("/");
+  position_lcd(7,0);
+  lcd.print("k");
+  position_lcd(13,0);
+  lcd.print("rpm");
+  //         1234567890123456
+  /*    position_lcd(3,1);
+   lcd.print("/"); Temp disabled for debugging */
+  position_lcd(3,1);
+  lcd.print("C");
+
+  position_lcd(5,1);
+  lcd.print("T");
+
+  position_lcd(12,1);
+  lcd.print("A");
+  // end temp added
   
   position_lcd(0,0);
   printn_lcd(toKpaMAP(controls.mapCorrected),3);
