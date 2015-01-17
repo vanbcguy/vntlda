@@ -62,6 +62,10 @@
 #define KpExp 0.3
 #define rpmSpool 1500
 
+/* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
+  value the integral gain will be doubled causing the integral to decrease faster. */
+#define maxPosError 55
+
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
  fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
@@ -273,6 +277,9 @@ struct controlsStruct {
 
   unsigned long lastTime;
   float lastInput;
+  
+  // We only need to calculate this once
+  float maxPosErrorPct;
 };
 
 controlsStruct controls;
@@ -558,6 +565,9 @@ void setup() {
   calcKp();
   calcKi();
   calcKd();
+  
+  //we only need to calculate this once
+  controls.maxPosErrorPct = (float)mapValues(maxPosError,settings.mapMin,settings.mapMax) / 255;
 
   digitalWrite(PIN_HEARTBEAT,LOW);  
   
@@ -1314,6 +1324,8 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.maxIntegral,DEC);
   Serial.print(",");
+  Serial.print(controls.maxPosErrorPct,DEC);
+  Serial.print(",");
   Serial.print(controls.pidOutput,DEC);
   Serial.print(",");
   Serial.print(millis()/10,DEC); 
@@ -1877,7 +1889,13 @@ void processValues() {
     if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
       if ( controls.rpmActual>0) {
+        if ( scaledInput - scaledTarget > controls.maxPosErrorPct ) {
+          // Double up the integral gain to cut back the boost faster; our boost is more than maxPosError over the setpoint
+          integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
+        } 
+        else {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange);
+        }
       }
     }
 
