@@ -73,7 +73,7 @@
 #define PIDMaxBoost 0.95
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
- a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM.  */
+ a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
 #define rpmResolution 8
 
 /* When we come off idle, start with the integral at this value (0-1.0) - this will prime the integral as we undoubtedly want the vanes closed a bit right away.
@@ -86,6 +86,11 @@ SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD);
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
 Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
+
+// Set loop delay times
+#define SERIAL_DELAY 250 // ms
+#define EXEC_DELAY 100 //ms
+#define DISPLAY_DELAY 500 // ms
 
 
 // Calculate avarage values 
@@ -199,10 +204,6 @@ prog_uchar statusString1[] PROGMEM  = " Active view: ";
 #define METHOD_DUTYCYCLEMAP 0
 #define METHOD_PID 1
 #define METHOD_SIMULATE_ACTUATOR 2
-
-#define SERIAL_DELAY 250 // ms
-#define EXEC_DELAY 100 //ms
-#define DISPLAY_DELAY 600 // ms
 
 #define TEMP_HYSTERESIS 3
 
@@ -1149,12 +1150,14 @@ void pageOutputTests(char key) {
     case 'Q':
       controls.vntPositionRemapped = 0;
       updateOutputValues(true);
+      updateLCD();
       delay(2000);				
       break;
     case 'w':
     case 'W':
       controls.vntPositionRemapped = 255;
       updateOutputValues(true);				
+      updateLCD();
       delay(2000);							
       break;
     case 'e':
@@ -1162,14 +1165,14 @@ void pageOutputTests(char key) {
       for (controls.vntPositionRemapped = 0;
                        controls.vntPositionRemapped<255;
                        controls.vntPositionRemapped++) {
-          updateOutputValues(true);
+        updateOutputValues(true);
         updateLCD();
         delay(20);
       }
       for (controls.vntPositionRemapped = 255;
                        controls.vntPositionRemapped>0;
                        controls.vntPositionRemapped--) {
-          updateOutputValues(true);
+        updateOutputValues(true);
         updateLCD();
         delay(20);
       }				
