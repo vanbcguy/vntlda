@@ -81,6 +81,7 @@
  which will spike the boost through the roof */
 #define OffIdleInt 0.45;
 
+
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
@@ -392,7 +393,7 @@ void calcRpm() {
   // We don't need to calculate the RPM every single revolution; lets smooth things out a bit eh?
   if (teethNo >=  rpmResolution) {
     // one minute divided by elapsed time times number of teeth seen divided by teeth per rotation
-    controls.rpmActual = (1000000 * 60 * teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
+    controls.rpmActual = (60UL * 1000000UL * (unsigned long)teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
 
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
@@ -1839,8 +1840,6 @@ void processValues() {
     scaledInput = 0;
   }
 
-  controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
-
   controls.rpmScale = (float)(settings.rpmMax - controls.rpmActual + rpmSpool) / settings.rpmMax;
 
   if (controls.rpmScale > 1.0) {
@@ -1862,9 +1861,11 @@ void processValues() {
 
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
-
     // Normal running mode
-
+    
+    /* Look up the requested boost */
+    controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
+    
     /* Now make the target a percentage of the same input span */
     scaledTarget = (float)controls.vntTargetPressure / inputSpan;
 
@@ -2178,6 +2179,31 @@ void loop() {
   
   execTimeRead=millis() - execTimeRead;
 
+  /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
+  
+  if ((millis() - execLoop) >= EXEC_DELAY) {
+    
+    execTimeAct = millis();
+    
+    // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
+    readValuesEgt();
+    
+    // We will actually process our values and change actuators every EXEC_DELAY milliseconds
+    if (freezeModeEnabled) {
+      Serial.print("\rFREEZE ");
+    } 
+    else {
+      // update output values according to input
+      calcRpm();
+      processValues();
+      updateOutputValues(false);
+    }  
+    execLoop = millis();
+    
+    execTimeAct = millis() - execTimeAct;
+  }
+
+
   /* we are only going to actualy process every SERIAL_LOOP_DELAY milliseconds though we will read from our sensors every loop
    This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
    single time */
@@ -2225,28 +2251,6 @@ void loop() {
     }
     displayPage(page,data);     
     serialLoop = millis();
-  }
-
-  if ((millis() - execLoop) >= EXEC_DELAY) {
-    
-    execTimeAct = millis();
-    
-    // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
-    readValuesEgt();
-    
-    // We will actually process our values and change actuators every EXEC_DELAY milliseconds
-    if (freezeModeEnabled) {
-      Serial.print("\rFREEZE ");
-    } 
-    else {
-      // update output values according to input
-      calcRpm();
-      processValues();
-      updateOutputValues(false);
-    }  
-    execLoop = millis();
-    
-    execTimeAct = millis() - execTimeAct;
   }
 
   if ((millis() - displayLoop) >= DISPLAY_DELAY) {
