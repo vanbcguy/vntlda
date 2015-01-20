@@ -390,14 +390,22 @@ void rpmTrigger() {
 unsigned long rpmMicros = 0;
 
 void calcRpm() {
+  unsigned int rps; // Revolutions per second
   // We don't need to calculate the RPM every single revolution; lets smooth things out a bit eh?
   if (teethNo >=  rpmResolution) {
-    // one minute divided by elapsed time times number of teeth seen divided by teeth per rotation
-    controls.rpmActual = (60UL * 1000000UL * (unsigned long)teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
+    // one second divided by elapsed time times number of teeth seen divided by teeth per rotation
+    rps = (1000000 * teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
 
+    controls.rpmActual = rps * 60;
+    
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
+  }
+  
+  if (controls.rpmActual < 0) {
+    // RPM can't be less than zero
+    controls.rpmActual = 0;
   }
 
   if ((micros() - rpmMicros) > (2 * 1000000)) {
@@ -1848,7 +1856,6 @@ void processValues() {
   else if (controls.rpmScale < 0.0) {
     controls.rpmScale = 0;
   }
-
 
 
   if ((controls.idling)) {
