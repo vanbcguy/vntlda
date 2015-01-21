@@ -388,30 +388,15 @@ void rpmTrigger() {
 }
 
 unsigned long rpmMicros = 0;
+unsigned long teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
 void calcRpm() {
-  unsigned int rps; // Revolutions per second
-  // We don't need to calculate the RPM every single revolution; lets smooth things out a bit eh?
-  if (teethNo >=  rpmResolution) {
-    // one second divided by elapsed time times number of teeth seen divided by teeth per rotation
-    rps = (1000000 * teethNo)/((micros() - rpmMicros) * settings.rpmTeethsPerRotation);
+  // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
+  controls.rpmActual = (teethSeconds * teethNo)/(micros() - rpmMicros);
 
-    controls.rpmActual = rps * 60;
-    
-    // Set time to now, reset tooth count to zero to start incrementing again
-    rpmMicros = micros();
-    teethNo = 0;
-  }
-  
-  if (controls.rpmActual < 0) {
-    // RPM can't be less than zero
-    controls.rpmActual = 0;
-  }
-
-  if ((micros() - rpmMicros) > (2 * 1000000)) {
-    // No RPM signal seen for 2 seconds, engine is not running or is running veeeery slowly
-    controls.rpmActual = 0;
-  }
+  // Set time to now, reset tooth count to zero to start incrementing again
+  rpmMicros = micros();
+  teethNo = 0;
 }
 
 void gotoXY(char x,char y) {
@@ -565,8 +550,6 @@ void setup() {
   tpsAvg.size=AVG_MAX;
   mapAvg.size=AVG_MAX;
   egtAvg.size=EGT_AVG_MAX; 
-
-
   
   //initial setup of kp/ki/kd
   calcKp();
