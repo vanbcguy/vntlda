@@ -391,12 +391,14 @@ unsigned long rpmMicros = 0;
 unsigned long teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
 void calcRpm() {
-  // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
-  controls.rpmActual = (teethSeconds * teethNo)/(micros() - rpmMicros);
+  if (teethNo > rpmResolution); {
+    // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
+    controls.rpmActual = (teethSeconds * teethNo)/(micros() - rpmMicros);
 
-  // Set time to now, reset tooth count to zero to start incrementing again
-  rpmMicros = micros();
-  teethNo = 0;
+    // Set time to now, reset tooth count to zero to start incrementing again
+    rpmMicros = micros();
+    teethNo = 0;
+  }
 }
 
 void gotoXY(char x,char y) {
