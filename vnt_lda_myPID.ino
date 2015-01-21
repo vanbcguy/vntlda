@@ -972,9 +972,11 @@ void pageStatusAndAdaption(char key) {
     break;
   case 'f': 
     if (settings.rpmTeethsPerRotation>1) settings.rpmTeethsPerRotation -= 1; 
+    teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
     break;				
   case 'F': 
     if (settings.rpmTeethsPerRotation<99) settings.rpmTeethsPerRotation += 1; 
+    teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
     break;				
   case 'd': 
     if (settings.rpmMax-100>1000) settings.rpmMax -= 100; 
