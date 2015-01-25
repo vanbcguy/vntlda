@@ -60,7 +60,7 @@
  changes will adjust the proportional gain based on RPM */
 #define KiExp 0.75
 #define KpExp 0.3
-#define rpmSpool 1500
+#define rpmSpool 1850
 
 /* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
   value the integral gain will be doubled causing the integral to decrease faster. */
@@ -78,8 +78,11 @@
 
 /* When we come off idle, start with the integral at this value (0-1.0) - this will prime the integral as we undoubtedly want the vanes closed a bit right away.
  Remember that this will get triggered when shifting gears; you probably don't want to set it to 100% (1.0) or you'll have fully closed vanes with a spun up turbo
- which will spike the boost through the roof */
+ which will spike the boost through the roof.  
+ preSpoolInt is the integral setting when we are below rpmSpool; we use a static value till we cross the "it is possible for the turbo to be doing something" mark
+ rather than let the integral wind up.  This probably disables OffIdleInt so it will likely be removed later. */
 #define OffIdleInt 0.45
+#define preSpoolInt 0.65
 
 
 // Set up the LCD pin
@@ -1881,7 +1884,7 @@ void processValues() {
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
-      if ( controls.rpmActual>0) {
+      if ( controls.rpmActual>0 && controls.rpmActual>rpmSpool) {
         if ( scaledInput - scaledTarget > maxPosErrorPct ) {
           // Double up the integral gain to cut back the boost faster; our boost is more than maxPosErrorPct over the setpoint
           integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
@@ -1890,6 +1893,11 @@ void processValues() {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange);
         }
       }
+    }
+    else {
+      /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
+      value here until we pass our spool RPM */
+      integral = preSpoolInt;
     }
     
     if ( integral < 0 ) {
