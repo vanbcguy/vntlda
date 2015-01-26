@@ -63,7 +63,7 @@
 #define rpmSpool 1850
 
 /* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
-  value the integral gain will be doubled causing the integral to decrease faster. */
+ value the integral gain will be doubled causing the integral to decrease faster. */
 #define maxPosErrorPct 0.10
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
@@ -77,7 +77,7 @@
 #define rpmResolution 40
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
-  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
+ get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
 #define preSpoolInt 0.65
 #define spoolMinBoost 10 // kpa
 
@@ -394,8 +394,9 @@ unsigned long rpmMicros = 0;
 unsigned long teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
 void calcRpm() {
-  if (teethNo > rpmResolution); {
-    
+  if (teethNo > rpmResolution); 
+  {
+
     teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
     // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
@@ -558,17 +559,17 @@ void setup() {
   tpsAvg.size=AVG_MAX;
   mapAvg.size=AVG_MAX;
   egtAvg.size=EGT_AVG_MAX; 
-  
+
   //initial setup of kp/ki/kd
   calcKp();
   calcKi();
   calcKd();
 
   digitalWrite(PIN_HEARTBEAT,LOW);  
-  
+
   // set up screen
   void layoutLCD();
-  
+
   pageAbout(1); // force output
 }
 
@@ -1167,14 +1168,14 @@ void pageOutputTests(char key) {
       for (controls.vntPositionRemapped = 0;
                        controls.vntPositionRemapped<255;
                        controls.vntPositionRemapped++) {
-        updateOutputValues(true);
+          updateOutputValues(true);
         updateLCD();
         delay(20);
       }
       for (controls.vntPositionRemapped = 255;
                        controls.vntPositionRemapped>0;
                        controls.vntPositionRemapped--) {
-        updateOutputValues(true);
+          updateOutputValues(true);
         updateLCD();
         delay(20);
       }				
@@ -1862,10 +1863,10 @@ void processValues() {
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
     // Normal running mode
-    
+
     /* Look up the requested boost */
     controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
-    
+
     /* Now make the target a percentage of the same input span */
     scaledTarget = (float)controls.vntTargetPressure / inputSpan;
 
@@ -1881,39 +1882,41 @@ void processValues() {
      Change KpExp to alter the curve */
     error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
 
-    /* Check if we were at the limit already on our last run, only integrate if we are not */
-    if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-      // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
-      if ( controls.rpmActual>0 && controls.mapInput > spoolMinBoost) {
-        if ( scaledInput - scaledTarget > maxPosErrorPct ) {
-          // Double up the integral gain to cut back the boost faster; our boost is more than maxPosErrorPct over the setpoint
-          integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
-        } 
-        else {
-        integral += (Ki * (scaledTarget - scaledInput) * timeChange);
-        }
-      }
-      else {
-      /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
-      value here until we pass our spool RPM */
-      integral = preSpoolInt;
-      }
-    }
-
     /* Determine the slope of the signal */
     derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
-    
+
     /* If we are below the setpoint, have a steep upwards slope and we are within spoolMinError of the setpoint then we will start chopping
-      the integral back fast to avoid overshoot */
+     the integral back fast to avoid overshoot */
     if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError)) {
       integral -= derivate;
+    } 
+    else {
+      /* Check if we were at the limit already on our last run, only integrate if we are not */
+      if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+        // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
+        if ( controls.rpmActual>0 && controls.mapInput > spoolMinBoost) {
+          if ( scaledInput - scaledTarget > maxPosErrorPct ) {
+            // Double up the integral gain to cut back the boost faster; our boost is more than maxPosErrorPct over the setpoint
+            integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
+          } 
+          else {
+            integral += (Ki * (scaledTarget - scaledInput) * timeChange);
+          }
+        }
+        else {
+          /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
+           value here until we pass our spool RPM */
+          integral = preSpoolInt;
+        }
+      }
     }
-    
+
+    /* Can't have a value below zero... */
     if ( integral < 0 ) {
       integral = 0;
     }
-    
+
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
       error = (error * (float)settings.boostBias) / 10; 
@@ -1987,7 +1990,7 @@ void layoutLCD() {
   lcd.write(0xFE);
   lcd.write(0x58);
   delay(10);
-  
+
   position_lcd(3,0);
   lcd.print("/");
   position_lcd(7,0);
@@ -2030,7 +2033,7 @@ void updateLCD() {
   position_lcd(12,1);
   lcd.print("A");
   // end temp added
-  
+
   position_lcd(0,0);
   printn_lcd(toKpaMAP(controls.mapCorrected),3);
 
@@ -2056,7 +2059,8 @@ void updateLCD() {
   printn_lcd(controls.vntPositionRemapped,3);
 
   if (controls.temp1 < EGT_WARN) {
-    if (egtState != 1); {
+    if (egtState != 1); 
+    {
       // Make the screen green again if it isn't already
       // set background colour - r/g/b 0-255
       lcd.write(0xFE);
@@ -2068,7 +2072,8 @@ void updateLCD() {
     }
   } 
   else if (controls.temp1 < EGT_ALARM) {
-    if (egtState != 2); {
+    if (egtState != 2); 
+    {
       // Make the screen orange if it isn't already
       lcd.write(0xFE);
       lcd.write(0xD0);
@@ -2079,7 +2084,8 @@ void updateLCD() {
     }
   } 
   else {
-    if (egtState != 3); {
+    if (egtState != 3); 
+    {
       // Make the screen red if it isn't already
       lcd.write(0xFE);
       lcd.write(0xD0);
@@ -2174,24 +2180,24 @@ unsigned long displayLoop = 0;
 void loop() {
 
   static char lastPage;
-  
+
   //We started executing at...
   execTimeRead=millis();
-  
+
   readValuesTps();
   readValuesMap();
-  
+
   execTimeRead=millis() - execTimeRead;
 
   /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
-  
+
   if ((millis() - execLoop) >= EXEC_DELAY) {
-    
+
     execTimeAct = millis();
-    
+
     // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
     readValuesEgt();
-    
+
     // We will actually process our values and change actuators every EXEC_DELAY milliseconds
     if (freezeModeEnabled) {
       Serial.print("\rFREEZE ");
@@ -2203,7 +2209,7 @@ void loop() {
       updateOutputValues(false);
     }  
     execLoop = millis();
-    
+
     execTimeAct = millis() - execTimeAct;
   }
 
@@ -2263,6 +2269,7 @@ void loop() {
     displayLoop = millis();
   }
 }
+
 
 
 
