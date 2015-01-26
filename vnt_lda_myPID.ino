@@ -1900,11 +1900,6 @@ void processValues() {
       }
     }
 
-    
-    if ( integral < 0 ) {
-      integral = 0;
-    }
-
     /* Determine the slope of the signal */
     derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
@@ -1914,7 +1909,11 @@ void processValues() {
     if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError)) {
       integral -= derivate;
     }
-
+    
+    if ( integral < 0 ) {
+      integral = 0;
+    }
+    
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
       error = (error * (float)settings.boostBias) / 10; 
