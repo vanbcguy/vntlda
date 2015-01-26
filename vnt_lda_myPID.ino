@@ -76,14 +76,14 @@
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
 #define rpmResolution 40
 
-/* When we come off idle, start with the integral at this value (0-1.0) - this will prime the integral as we undoubtedly want the vanes closed a bit right away.
- Remember that this will get triggered when shifting gears; you probably don't want to set it to 100% (1.0) or you'll have fully closed vanes with a spun up turbo
- which will spike the boost through the roof.  
- preSpoolInt is the integral setting when we are below rpmSpool; we use a static value till we cross the "it is possible for the turbo to be doing something" mark
- rather than let the integral wind up.  This probably disables OffIdleInt so it will likely be removed later. */
-#define OffIdleInt 0.45
+/* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
+  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
 #define preSpoolInt 0.65
+#define spoolMinBoost 10 // kpa
 
+/* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
+#define spoolThreshold 0.035
+#define spoolMinError 0.10
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -1856,7 +1856,7 @@ void processValues() {
 
     controls.vntTargetPressure=0;                      // We don't want any pressure
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = OffIdleInt;                             // We're going to want boost as soon as we come off idle, prime the system
+    integral = preSpoolInt;                            // We're going to want boost as soon as we come off idle, prime the system
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
 
   } 
@@ -1884,7 +1884,7 @@ void processValues() {
     /* Check if we were at the limit already on our last run, only integrate if we are not */
     if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
       // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
-      if ( controls.rpmActual>0 && controls.rpmActual>rpmSpool) {
+      if ( controls.rpmActual>0 && controls.mapInput > spoolMinBoost) {
         if ( scaledInput - scaledTarget > maxPosErrorPct ) {
           // Double up the integral gain to cut back the boost faster; our boost is more than maxPosErrorPct over the setpoint
           integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
@@ -1893,12 +1893,13 @@ void processValues() {
         integral += (Ki * (scaledTarget - scaledInput) * timeChange);
         }
       }
-    }
-    else {
+      else {
       /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
       value here until we pass our spool RPM */
       integral = preSpoolInt;
+      }
     }
+
     
     if ( integral < 0 ) {
       integral = 0;
@@ -1907,6 +1908,12 @@ void processValues() {
     /* Determine the slope of the signal */
     derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
+    
+    /* If we are below the setpoint, have a steep upwards slope and we are within spoolMinError of the setpoint then we will start chopping
+      the integral back fast to avoid overshoot */
+    if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError)) {
+      integral -= derivate;
+    }
 
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
     if (error>0) {
