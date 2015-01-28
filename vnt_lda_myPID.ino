@@ -81,7 +81,7 @@
  preSpoolGain is a multiplier for Kp as we will be using a static integral, we will need more of our control to be proportional */
 #define preSpoolInt 0.45
 #define preSpoolGain 2
-#define spoolMinBoost 10 // kpa
+#define spoolMinBoost 6 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define rampThreshold 0.02
@@ -91,9 +91,6 @@
    overGain */
 #define underGain 0.2
 #define overGain 2
-
-#define spoolMinError 0.15
-#define spoolMinIntegral 0.35
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -1895,7 +1892,7 @@ void processValues() {
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
     float scaledError = scaledTarget - scaledInput;
 
-    if ( controls.mapInput < spoolMinBoost ) {
+    if ( toKpaMAP(controls.mapInput) < spoolMinBoost ) {
       // We haven't spooled up yet - use a static value for the integral
       // May want to add a case here for 'spooled but still at low boost'
       integral = preSpoolInt;
@@ -1912,53 +1909,20 @@ void processValues() {
           error = Kp * underGain * scaledError;
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
-          integral += Ki * overGain * scaledError * timeChange;
+          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            integral += Ki * overGain * scaledError * timeChange;
+          }
           error = Kp * overGain * scaledError;
         }
       } else {
         // We are spooled but everything is normal; we can use normal PID
-        // May want to add a case here for excessive overshoot reduction
-        integral += Ki * scaledError * timeChange; 
+        if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          // If we are at the upper or lower limit then don't integrate, otherwise go ahead
+          integral += Ki * scaledError * timeChange; 
+        }
         error = Kp * scaledError;
       }
     }
-
-    /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
-     Change KpExp to alter the curve */
-     // old method
-   // error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
-
-
-    /* If we are below the setpoint, have a steep upwards slope and we are within spoolMinError of the setpoint then we will start chopping
-     the integral back fast to avoid overshoot */
-     /* old method
-    if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError) && (integral>spoolMinIntegral)) {
-      integral -= 2 * derivate;
-    } 
-    else {
-      */
-      /* Check if we were at the limit already on our last run, only integrate if we are not */
-      /* old method
-      if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-        // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
-        if ( controls.rpmActual>0 && controls.mapInput > spoolMinBoost) {
-          if ( scaledInput - scaledTarget > maxPosErrorPct ) {
-            // Double up the integral gain to cut back the boost faster; our boost is more than maxPosErrorPct over the setpoint
-            integral += (2 * Ki * (scaledTarget - scaledInput) * timeChange);
-          } 
-          else {
-            integral += (Ki * (scaledTarget - scaledInput) * timeChange);
-          }
-        }
-        else {
-          */
-          /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
-           value here until we pass our spool RPM */
-           /* old method
-          integral = preSpoolInt;
-        }
-      }
-    } */
 
     /* Can't have a value below zero... */
     if ( integral < 0 ) {
