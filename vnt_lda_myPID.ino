@@ -1897,9 +1897,10 @@ void processValues() {
 
     if ( controls.mapInput < spoolMinBoost ) {
       // We haven't spooled up yet - use a static value for the integral
+      // May want to add a case here for 'spooled but still at low boost'
       integral = preSpoolInt;
       // Since we aren't integrating, we will increase the proportional control
-      error = (Kp * preSpoolGain) * scaledError;
+      error = Kp * preSpoolGain * scaledError;
     } else {
       // Turbo is producing pressure - now we can start doing actual PID
       if ( derivate > rampThreshold ) {
@@ -1907,15 +1908,16 @@ void processValues() {
         derivate = derivate * rampFactor;
         if (scaledError > 0) {
           // We haven't overshot yet, reduce upwards momentum and stop integrating
-          error = (Kp * underGain) * scaledError;
+          error = Kp * underGain * scaledError;
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
-          integral += (Ki * overGain * scaledError * timeChange);
-          error = (Kp * overGain) * scaledError;
+          integral += Ki * overGain * scaledError * timeChange;
+          error = Kp * overGain * scaledError;
         }
       } else {
         // We are spooled but everything is normal; we can use normal PID
-        integral += (Ki * scaledError * timeChange); 
+        // May want to add a case here for excessive overshoot reduction
+        integral += Ki * scaledError * timeChange; 
         error = Kp * scaledError;
       }
     }
