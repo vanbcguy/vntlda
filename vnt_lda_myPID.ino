@@ -1908,6 +1908,7 @@ void processValues() {
         derivate = derivate * rampFactor;
         if (scaledError > 0) {
           // We haven't overshot yet, reduce upwards momentum and stop integrating
+          //integral = integral; // no-op, here for visualization purposes
           error = Kp * underGain * scaledError;
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
