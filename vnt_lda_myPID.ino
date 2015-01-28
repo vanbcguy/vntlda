@@ -77,12 +77,21 @@
 #define rpmResolution 40
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
- get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
-#define preSpoolInt 0.65
+ get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
+ preSpoolGain is a multiplier for Kp as we will be using a static integral, we will need more of our control to be proportional */
+#define preSpoolInt 0.45
+#define preSpoolGain 2
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
-#define spoolThreshold 0.02
+#define rampThreshold 0.02
+#define rampFactor 2
+
+/* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
+   overGain */
+#define underGain 0.2
+#define overGain 2
+
 #define spoolMinError 0.15
 #define spoolMinIntegral 0.35
 
@@ -1856,9 +1865,9 @@ void processValues() {
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map 
 
-    controls.vntTargetPressure=0;                      // We don't want any pressure
+    controls.vntTargetPressure = 0;                    // We don't want any pressure
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = preSpoolInt;                            // We're going to want boost as soon as we come off idle, prime the system
+    integral = 0;                                      // Only you can prevent integral windup at idle
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
 
   } 
@@ -1878,22 +1887,55 @@ void processValues() {
     else if (scaledTarget<0) {
       scaledTarget = 0;
     }
+    
+    /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
+    derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
+    controls.lastInput = scaledInput;
+    
+    /* Since we do a bunch of comparisons with this value lets just calculate it once */
+    float scaledError = scaledTarget - scaledInput;
+
+    if ( controls.mapInput < spoolMinBoost ) {
+      // We haven't spooled up yet - use a static value for the integral
+      integral = preSpoolInt;
+      // Since we aren't integrating, we will increase the proportional control
+      error = (Kp * preSpoolGain) * scaledError;
+    } else {
+      // Turbo is producing pressure - now we can start doing actual PID
+      if ( derivate > rampThreshold ) {
+        // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
+        derivate = derivate * rampFactor;
+        if (scaledError > 0) {
+          // We haven't overshot yet, reduce upwards momentum and stop integrating
+          error = (Kp * underGain) * scaledError;
+        } else {
+          // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
+          integral += (Ki * overGain * scaledError * timeChange);
+          error = (Kp * overGain) * scaledError;
+        }
+      } else {
+        // We are spooled but everything is normal; we can use normal PID
+        integral += (Ki * scaledError * timeChange); 
+        error = Kp * scaledError;
+      }
+    }
 
     /* Error will be calculated now - RPM based proportional control. Decrease proportional gain as RPM increases.
      Change KpExp to alter the curve */
-    error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
+     // old method
+   // error = ((Kp*pow(controls.rpmScale, KpExp)) * (scaledTarget - scaledInput));  
 
-    /* Determine the slope of the signal */
-    derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
-    controls.lastInput = scaledInput;
 
     /* If we are below the setpoint, have a steep upwards slope and we are within spoolMinError of the setpoint then we will start chopping
      the integral back fast to avoid overshoot */
+     /* old method
     if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError) && (integral>spoolMinIntegral)) {
       integral -= 2 * derivate;
     } 
     else {
+      */
       /* Check if we were at the limit already on our last run, only integrate if we are not */
+      /* old method
       if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
         // RPM-based integral - decrease the integral as RPM increases.  Change KiExp to alter the curve
         if ( controls.rpmActual>0 && controls.mapInput > spoolMinBoost) {
@@ -1906,12 +1948,14 @@ void processValues() {
           }
         }
         else {
+          */
           /* We won't have spooled the turbo; don't make the integral build or we are just going to wind it up a bunch.  We'll use a static
            value here until we pass our spool RPM */
+           /* old method
           integral = preSpoolInt;
         }
       }
-    }
+    } */
 
     /* Can't have a value below zero... */
     if ( integral < 0 ) {
