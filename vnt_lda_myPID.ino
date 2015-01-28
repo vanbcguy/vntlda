@@ -83,7 +83,8 @@
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define spoolThreshold 0.02
-#define spoolMinError 0.20
+#define spoolMinError 0.15
+#define spoolMinIntegral 0.35
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -1888,7 +1889,7 @@ void processValues() {
 
     /* If we are below the setpoint, have a steep upwards slope and we are within spoolMinError of the setpoint then we will start chopping
      the integral back fast to avoid overshoot */
-    if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError)) {
+    if ((error>0) && (derivate>spoolThreshold) && (error<spoolMinError) && (integral>spoolMinIntegral)) {
       integral -= 2 * derivate;
     } 
     else {
