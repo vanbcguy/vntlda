@@ -84,8 +84,9 @@
 #define spoolMinBoost 6 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
-#define rampThreshold 0.02
+#define rampThreshold 0.025
 #define rampFactor 2
+#define rampActive 15/255 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
@@ -1892,7 +1893,7 @@ void processValues() {
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
     float scaledError = scaledTarget - scaledInput;
 
-    if ( toKpaMAP(controls.mapInput) < spoolMinBoost ) {
+    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost ) {
       // We haven't spooled up yet - use a static value for the integral
       // May want to add a case here for 'spooled but still at low boost'
       integral = preSpoolInt;
@@ -1903,8 +1904,8 @@ void processValues() {
       if ( derivate > rampThreshold ) {
         // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
         derivate = derivate * rampFactor;
-        if (scaledError > 0) {
-          // We haven't overshot yet, reduce upwards momentum and stop integrating
+        if (scaledError < rampActive) {
+          // We haven't overshot yet but we're approaching setpoint. Reduce upwards momentum and stop integrating
           //integral = integral; // no-op, here for visualization purposes
           error = Kp * underGain * scaledError;
         } else {
