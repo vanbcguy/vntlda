@@ -78,10 +78,10 @@
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
- preSpoolGain is a multiplier for Kp as we will be using a static integral, we will need more of our control to be proportional */
-#define preSpoolInt 0.45
-#define preSpoolGain 2
-#define spoolMinBoost 6 // kpa
+ preSpoolProp is a static value */
+#define preSpoolInt 0.50
+#define preSpoolProp 0.50
+#define spoolMinBoost 7 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define rampThreshold 0.025
@@ -427,8 +427,6 @@ void gotoXY(char x,char y) {
 void modeSelect() {
 
   //  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
-
-  controls.mode = 1;
 
   editorMaps = editorMaps1;
 
@@ -1330,9 +1328,9 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.boostCalculatedD,DEC);
   Serial.print(",");
-  Serial.print(controls.maxIntegral,DEC);
-  Serial.print(",");
   Serial.print(controls.pidOutput,DEC);
+  Serial.print(",");
+  Serial.print(controls.mode,DEC);
   Serial.print(",");
   Serial.print(millis()/10,DEC); 
   Serial.print(",");
@@ -1867,7 +1865,8 @@ void processValues() {
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
     integral = 0;                                      // Only you can prevent integral windup at idle
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
-
+    controls.mode = 0;                                 // System status = idling
+    
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
     // Normal running mode
@@ -1896,9 +1895,10 @@ void processValues() {
     if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost ) {
       // We haven't spooled up yet - use a static value for the integral
       // May want to add a case here for 'spooled but still at low boost'
+      controls.mode = 1;              // idling
       integral = preSpoolInt;
       // Since we aren't integrating, we will increase the proportional control
-      error = Kp * preSpoolGain * scaledError;
+      error = preSpoolProp;
     } else {
       // Turbo is producing pressure - now we can start doing actual PID
       if ( derivate > rampThreshold ) {
@@ -1906,22 +1906,35 @@ void processValues() {
         derivate = derivate * rampFactor;
         if (scaledError < rampActive) {
           // We haven't overshot yet but we're approaching setpoint. Reduce upwards momentum and stop integrating
+          controls.mode = 5;                 // Under but accelerating upwards rapidly
           //integral = integral; // no-op, here for visualization purposes
           error = Kp * underGain * scaledError;
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
+          controls.mode = 4;                  // Overshot and still accelerating upwards
           if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * overGain * scaledError * timeChange;
           }
           error = Kp * overGain * scaledError;
         }
       } else {
-        // We are spooled but everything is normal; we can use normal PID
-        if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-          // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-          integral += Ki * scaledError * timeChange; 
+        if (-scaledError > maxPosErrorPct) {
+          //We're quite a bit over
+          controls.mode = 3;                   // Over but not steeply accelerating
+          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
+            integral += Ki * overGain * scaledError * timeChange; 
+          } 
+          error = Kp * overGain * scaledError;
+        } else {
+          // We are spooled but everything is normal; we can use normal PID
+          controls.mode = 2;                    // Normal PID
+          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
+            integral += Ki * scaledError * timeChange; 
+          }
+          error = Kp * scaledError;
         }
-        error = Kp * scaledError;
       }
     }
 
@@ -1935,6 +1948,7 @@ void processValues() {
       error = (error * (float)settings.boostBias) / 10; 
     } 
     else if ((error<0) && (scaledInput > PIDMaxBoost)) {
+      controls.mode = 6;              // We're in emergency pullback mode
       error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
     }
 
