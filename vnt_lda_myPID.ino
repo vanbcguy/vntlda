@@ -93,6 +93,10 @@
 #define underGain 0.2
 #define overGain 2
 
+/* Fine control ratios */
+# define fineBand 0.05
+# define fineGain 0.5
+
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
@@ -1926,6 +1930,12 @@ void processValues() {
             integral += Ki * overGain * scaledError * timeChange; 
           } 
           error = Kp * overGain * scaledError;
+        } else if ((scaledError < fineBand) || (-scaledError < fineBand)) {
+          controls.mode = 7;
+          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            integral += Ki * fineGain * scaledError * timeChange;
+          }
+          error = Kp * fineGain * scaledError;
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
