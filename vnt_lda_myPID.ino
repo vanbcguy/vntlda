@@ -79,14 +79,14 @@
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
  preSpoolProp is a static value */
-#define preSpoolInt 0.50
-#define preSpoolProp 0.50
-#define spoolMinBoost 7 // kpa
+#define preSpoolInt 0.60
+#define preSpoolProp 0.40
+#define spoolMinBoost 8 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define rampThreshold 0.025
 #define rampFactor 2
-#define rampActive 15/255 // kPa value divided by max to yield percentage
+#define rampActive 0.06 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
@@ -1868,6 +1868,8 @@ void processValues() {
     controls.vntTargetPressure = 0;                    // We don't want any pressure
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
     integral = 0;                                      // Only you can prevent integral windup at idle
+    error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
+    derivate = 0;                                      // See above
     controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
     controls.mode = 0;                                 // System status = idling
     
@@ -1904,15 +1906,26 @@ void processValues() {
       // Since we aren't integrating, we will increase the proportional control
       error = preSpoolProp;
     } else {
-      // Turbo is producing pressure - now we can start doing actual PID
+      // Turbo is producing pressure - now we can start actually controlling it
       if ( derivate > rampThreshold ) {
         // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
         derivate = derivate * rampFactor;
-        if (scaledError < rampActive) {
-          // We haven't overshot yet but we're approaching setpoint. Reduce upwards momentum and stop integrating
-          controls.mode = 5;                 // Under but accelerating upwards rapidly
-          //integral = integral; // no-op, here for visualization purposes
-          error = Kp * underGain * scaledError;
+        if (scaledError > 0) {
+          // We are below setpoint
+          if (scaledError < rampActive) {
+            // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum and stop integrating
+            controls.mode = 5;                 // Under but accelerating upwards rapidly
+            //integral = integral; // no-op, here for visualization purposes
+            error = Kp * underGain * scaledError;
+          } else {
+            // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
+            controls.mode = 2;                    // Normal PID
+            if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+              // If we are at the upper or lower limit then don't integrate, otherwise go ahead
+              integral += Ki * scaledError * timeChange; 
+            }
+            error = Kp * scaledError;
+          }
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
           controls.mode = 4;                  // Overshot and still accelerating upwards
@@ -1930,12 +1943,14 @@ void processValues() {
             integral += Ki * overGain * scaledError * timeChange; 
           } 
           error = Kp * overGain * scaledError;
-        } else if ((scaledError < fineBand) || (-scaledError < fineBand)) {
+        } else if (abs(scaledError) < fineBand) {
+          // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode, disable derivative.
           controls.mode = 7;
           if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * fineGain * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
+          derivate = 0;
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
