@@ -79,8 +79,8 @@
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
  preSpoolProp is a static value */
-#define preSpoolInt 0.70
-#define preSpoolProp 0.30
+#define preSpoolInt 0.55
+#define preSpoolProp 0.45
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
@@ -1915,7 +1915,7 @@ void processValues() {
           if (scaledError < rampActive) {
             // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum and stop integrating
             controls.mode = 5;                 // Under but accelerating upwards rapidly
-            //integral = integral; // no-op, here for visualization purposes
+            integral -= Ki * underGain * scaledError * timeChange; //make the integral go backwards
             error = Kp * underGain * scaledError;
           } else {
             // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
