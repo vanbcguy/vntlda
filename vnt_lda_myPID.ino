@@ -79,14 +79,14 @@
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
  preSpoolProp is a static value */
-#define preSpoolInt 0.60
-#define preSpoolProp 0.40
-#define spoolMinBoost 8 // kpa
+#define preSpoolInt 0.70
+#define preSpoolProp 0.30
+#define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
-#define rampThreshold 0.025
+#define rampThreshold 0.020
 #define rampFactor 2
-#define rampActive 0.06 // kPa value divided by max to yield percentage
+#define rampActive 0.20 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
@@ -94,7 +94,7 @@
 #define overGain 2
 
 /* Fine control ratios */
-# define fineBand 0.05
+# define fineBand 0.03
 # define fineGain 0.5
 
 // Set up the LCD pin
@@ -1919,7 +1919,7 @@ void processValues() {
             error = Kp * underGain * scaledError;
           } else {
             // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
-            controls.mode = 2;                    // Normal PID
+            controls.mode = 8;                    // Normal PID
             if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
               // If we are at the upper or lower limit then don't integrate, otherwise go ahead
               integral += Ki * scaledError * timeChange; 
