@@ -1950,7 +1950,7 @@ void processValues() {
             integral += Ki * fineGain * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
-          derivate = 0;
+          derivate = fineGain * derivate;
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
