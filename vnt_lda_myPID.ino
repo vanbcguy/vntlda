@@ -104,13 +104,13 @@ SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD);
 Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 // Set loop delay times
-#define SERIAL_DELAY 250 // ms
-#define EXEC_DELAY 100 //ms
+#define SERIAL_DELAY 257 // ms
+#define EXEC_DELAY 80 //ms
 #define DISPLAY_DELAY 500 // ms
 
 
 // Calculate avarage values 
-#define AVG_MAX 25 
+#define AVG_MAX 20 
 #define EGT_AVG_MAX 3
 
 #define STATUS_IDLE 1
@@ -2270,7 +2270,7 @@ void loop() {
    This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
    single time */
 
-  if ((millis() - serialLoop) >= SERIAL_DELAY) {  
+  else if ((millis() - serialLoop) >= SERIAL_DELAY) {  
 
     unsigned char data = 0;
 
@@ -2315,7 +2315,7 @@ void loop() {
     serialLoop = millis();
   }
 
-  if ((millis() - displayLoop) >= DISPLAY_DELAY) {
+  else if ((millis() - displayLoop) >= DISPLAY_DELAY) {
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
     displayLoop = millis();
