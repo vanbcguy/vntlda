@@ -89,11 +89,12 @@
 #define rampActive 0.20 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
-   overGain */
+ overGain */
 #define underGain 0.2
 #define overGain 2
 
 /* Fine control ratios */
+# define errorThreshold 2 // kPa - don't do anything if error is less than this
 # define fineBand 0.03
 # define fineGain 0.5
 
@@ -105,9 +106,12 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 // Set loop delay times
 #define SERIAL_DELAY 257 // ms
+#define EGTRPM_DELAY 100 // ms
 #define EXEC_DELAY 80 //ms
 #define DISPLAY_DELAY 500 // ms
 
+// PID Gain computation
+#define GAIN(g,v) (((g)*(v)+50)/100)
 
 // Calculate avarage values 
 #define AVG_MAX 20 
@@ -282,18 +286,14 @@ struct controlsStruct {
   char output2Enabled;
   unsigned char auxOutput;
 
-  float boostCalculatedP;
-  float boostCalculatedI;
-  float boostCalculatedD;
+  int boostCalculatedP;
+  int boostCalculatedI;
+  int boostCalculatedD;
 
-  float pidOutput;
-  float prevPidOutput;
-
-  float rpmScale;
-  float maxIntegral;
+  int pidOutput;
+  int prevPidOutput;
 
   unsigned long lastTime;
-  float lastInput;
 };
 
 controlsStruct controls;
@@ -417,6 +417,7 @@ void calcRpm() {
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
+    controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
   }
 }
 
@@ -492,20 +493,20 @@ void setup_lcd() {
 }
 
 
-float Kp;
-float Ki;
-float Kd;
+int Kp;
+int Ki;
+int Kd;
 
 void calcKp() {
-  Kp = (float)(settings.boostKp)/PIDControlRatio;
+  Kp = settings.boostKp * 10;
 }
 
 void calcKi() {
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 500);
+  Ki = settings.boostKi;
 }
 
 void calcKd() {
-  Kd = (float)(settings.boostKd * 100)/PIDControlRatio; 
+  Kd = settings.boostKd * 100; 
 }
 
 void setup() {
@@ -1309,7 +1310,6 @@ void pageExport(char key) {
   }
 }
 
-unsigned int execTimeRead = 0;
 unsigned int execTimeAct = 0;
 
 void pageDataLogger(char key) {
@@ -1337,8 +1337,6 @@ void pageDataLogger(char key) {
   Serial.print(controls.mode,DEC);
   Serial.print(",");
   Serial.print(millis()/10,DEC); 
-  Serial.print(",");
-  Serial.print(execTimeRead,DEC);
   Serial.print(",");
   Serial.print(execTimeAct,DEC);
   Serial.write(3);
@@ -1767,50 +1765,36 @@ void readValuesEgt() {
   } 
 }
 
+
+void processEgt() {
+  // EGT controls
+  controls.egtInput = getFilteredAvarage(&egtAvg);
+  controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
+  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
+}
+
+unsigned long execLoop = 0;
+
+#define CVmax  255
+#define PVmax  255
+
 void processValues() {
+  int error;                    // PID error
 
-  /* We aren't using this...
-   if (!controls.output1Enabled) {
-   if (controls.temp1 >= settings.output1EnableTemp) {
-   controls.output1Enabled = true;
-   }
-   } 
-   else {
-   if (controls.temp1 <= settings.output1EnableTemp-TEMP_HYSTERESIS) {
-   controls.output1Enabled = false;
-   }
-   }
-   
-   if (!controls.output2Enabled) {
-   if (controls.temp2 >= settings.output2EnableTemp) {
-   controls.output2Enabled = true;
-   }
-   } 
-   else {
-   if (controls.temp2 <= settings.output2EnableTemp-TEMP_HYSTERESIS) {
-   controls.output2Enabled = false;
-   }
-   }
-   */
+  static int esum;		// integral
+  static int pvprev;            // previous process value (for derivative calculation)
 
+  // read maps
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
-
-
-  controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
   controls.mapInput = getFilteredAvarage(&mapAvg);
   controls.mapCorrected = mapValues(controls.mapInput,settings.mapMin,settings.mapMax);
   controls.tpsInput = getFilteredAvarage(&tpsAvg);
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
-  controls.empInput = getFilteredAvarage(&empAvg);
-  controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
-  controls.egtInput = getFilteredAvarage(&egtAvg);
-  controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
+  controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
+    
+  int timeChange = millis() - controls.lastTime;
 
-  // EGT controls
-  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
-
-  // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
   } 
@@ -1820,190 +1804,71 @@ void processValues() {
   else {
     controls.idling = false;
   }
-  unsigned long now = millis();
-  int timeChange = now - controls.lastTime;
-
-  static float error;
-  static float integral;
-  static float derivate;
-
-  float controlSpan;
-  float inputSpan;
-
-  float scaledInput;
-  float scaledTarget;
-  float scaledBias;
-
-  float toControlVNT;
 
   /* This is the available span of our DC - we can only go between min and max */
-  controlSpan = controls.vntMaxDc - controls.vntMinDc;
-
-  /* This is the available span of our input - we can only go between 0-255 */
-  inputSpan = 255.0;
-
-  /* Make the input a percentage of the availble input span */
-  scaledInput = (float)controls.mapCorrected / inputSpan; 
-
-  if (scaledInput>1.0) {
-    scaledInput = 1.0;
-  } 
-  else if (scaledInput<0) {
-    scaledInput = 0;
-  }
-
-  controls.rpmScale = (float)(settings.rpmMax - controls.rpmActual + rpmSpool) / settings.rpmMax;
-
-  if (controls.rpmScale > 1.0) {
-    controls.rpmScale = 1.0;
-  }
-  else if (controls.rpmScale < 0.0) {
-    controls.rpmScale = 0;
-  }
-
+  int controlSpan = controls.vntMaxDc - controls.vntMinDc;
 
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map 
-
     controls.vntTargetPressure = 0;                    // We don't want any pressure
-    controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = 0;                                      // Only you can prevent integral windup at idle
-    error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
-    derivate = 0;                                      // See above
-    controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
+    esum = 0;                                          // Integral is zero
+    pvprev = controls.mapCorrected;                    // Keep the derivative loop primed
+    controls.pidOutput = 0;                            // PID output is zero
     controls.mode = 0;                                 // System status = idling
-    
+
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
     // Normal running mode
 
-    /* Look up the requested boost */
-    controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
-
-    /* Now make the target a percentage of the same input span */
-    scaledTarget = (float)controls.vntTargetPressure / inputSpan;
-
-    /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
-    if (scaledTarget>1.0) {
-      scaledTarget = 1.0;
-    } 
-    else if (scaledTarget<0) {
-      scaledTarget = 0;
+    error = controls.mapCorrected - controls.vntTargetPressure;	// setpoint - process value
+    
+    if (abs(error) < errorThreshold) {
+      // Error is too small to bother with
+      error = 0;
     }
-    
-    /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
-    derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
-    controls.lastInput = scaledInput;
-    
-    /* Since we do a bunch of comparisons with this value lets just calculate it once */
-    float scaledError = scaledTarget - scaledInput;
 
-    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost ) {
-      // We haven't spooled up yet - use a static value for the integral
-      // May want to add a case here for 'spooled but still at low boost'
-      controls.mode = 1;              // idling
-      integral = preSpoolInt;
-      // Since we aren't integrating, we will increase the proportional control
-      error = preSpoolProp;
-    } else {
-      // Turbo is producing pressure - now we can start actually controlling it
-      if ( derivate > rampThreshold ) {
-        // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
-        derivate = derivate * rampFactor;
-        if (scaledError > 0) {
-          // We are below setpoint
-          if (scaledError < rampActive) {
-            // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum and stop integrating
-            controls.mode = 5;                 // Under but accelerating upwards rapidly
-            integral -= Ki * underGain * scaledError * timeChange; //make the integral go backwards
-            error = Kp * underGain * scaledError;
-          } else {
-            // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
-            controls.mode = 8;                    // Normal PID
-            if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-              // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-              integral += Ki * scaledError * timeChange; 
-            }
-            error = Kp * scaledError;
-          }
-        } else {
-          // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
-          controls.mode = 4;                  // Overshot and still accelerating upwards
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-            integral += Ki * overGain * scaledError * timeChange;
-          }
-          error = Kp * overGain * scaledError;
-        }
-      } else {
-        if (-scaledError > maxPosErrorPct) {
-          //We're quite a bit over
-          controls.mode = 3;                   // Over but not steeply accelerating
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * overGain * scaledError * timeChange; 
-          } 
-          error = Kp * overGain * scaledError;
-        } else if (abs(scaledError) < fineBand) {
-          // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode, disable derivative.
-          controls.mode = 7;
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-            integral += Ki * fineGain * scaledError * timeChange;
-          }
-          error = Kp * fineGain * scaledError;
-          derivate = fineGain * derivate;
-        } else {
-          // We are spooled but everything is normal; we can use normal PID
-          controls.mode = 2;                    // Normal PID
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * scaledError * timeChange; 
-          }
-          error = Kp * scaledError;
-        }
+    // Compute proportional term
+    controls.boostCalculatedP = GAIN(Kp, error);		// Kp * E
+
+    if ((millis() - execLoop) >= EXEC_DELAY) {
+      // now we'll integrate
+      execLoop = millis();
+      esum += error;
+
+      if (esum > CVmax/Ki) {
+        esum = CVmax/Ki;
+      } 
+      else if (esum < 0) {
+        esum = 0;
       }
+      controls.boostCalculatedI = GAIN(Ki, esum);	// Ki * Esum
+
+        // And now the derivative
+      controls.boostCalculatedD = GAIN(Kd, pvprev - controls.mapCorrected); // Kd * PVdelta
+      pvprev = controls.mapCorrected;
     }
 
-    /* Can't have a value below zero... */
-    if ( integral < 0 ) {
-      integral = 0;
-    }
+    // Add terms: P+I+D
+    controls.pidOutput = controls.boostCalculatedP + controls.boostCalculatedI + controls.boostCalculatedD;
 
-    /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
-    if (error>0) {
-      error = (error * (float)settings.boostBias) / 10; 
+    // Limit cv to allowed values
+
+    if ( controls.pidOutput < 0 ) {
+      controls.pidOutput = 0;
     } 
-    else if ((error<0) && (scaledInput > PIDMaxBoost)) {
-      controls.mode = 6;              // We're in emergency pullback mode
-      error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
+    else if ( controls.pidOutput > CVmax ) {
+      controls.pidOutput = CVmax;
     }
-
-    /* PID Output */
-    controls.pidOutput = error + integral - derivate;
-
   } 
   else {
     // We must be over max RPM, open the vanes!
     controls.pidOutput = 0;
   }
+  
+  // Store what time it was when we completed the loop
+  controls.lastTime = millis();
 
-
-  // now = millis();   // This was set above, if we set it again here we aren't counting the time we spent processing?
-  controls.lastTime = now;
-
-  /* If our loop goes over 100% or under 0% weird things happen!*/
-  if (controls.pidOutput > 1.0) {
-    controls.pidOutput = 1.0;
-  } 
-  else if (controls.pidOutput < 0) {
-    controls.pidOutput = 0;
-  }
-
-  controls.prevPidOutput = controls.pidOutput;
-
-  // Not sure why I used two variables here? 
-  toControlVNT =  controls.pidOutput * controlSpan + controls.vntMinDc;
-
-  controls.vntPositionDC = toControlVNT;
+  controls.vntPositionDC = ((controls.pidOutput * controlSpan) / 255) + controls.vntMinDc;
 
   /* This loop should never ever be true - a 100% output should be diff between min and max + min which should equal max
    but I'm not quite ready to remove this */
@@ -2013,11 +1878,6 @@ void processValues() {
   if ((settings.options & OPTIONS_VANESOPENIDLE)) {  // Open the vanes fully if set that way
     controls.vntPositionDC=0;
   }
-
-  /* Display these as real numbers - will make the logs more useful as we can try different values */
-  controls.boostCalculatedP=(error);
-  controls.boostCalculatedI=(integral);
-  controls.boostCalculatedD=(derivate);
 
   unsigned char finalPos;
   finalPos = controls.vntPositionDC;
@@ -2225,51 +2085,36 @@ void displayPage(char page,char data) {
 bool freezeModeEnabled=false;
 
 unsigned long serialLoop = 0;
-unsigned long execLoop = 0;
 unsigned long displayLoop = 0;
+unsigned long egtRpmLoop = 0;
 
 
 void loop() {
 
   static char lastPage;
 
-  //We started executing at...
-  execTimeRead=millis();
-
+  // Read from our sensors
   readValuesTps();
   readValuesMap();
 
-  execTimeRead=millis() - execTimeRead;
+  // Do stuff
+  execTimeAct = millis();
+  if (freezeModeEnabled) {
+    Serial.print("\rFREEZE ");
+  } 
+  else {
+    calcRpm();
+    processValues();
+    updateOutputValues(false);
+  }
+  execTimeAct = millis() - execTimeAct;
 
-  /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
-
-  if ((millis() - execLoop) >= EXEC_DELAY) {
-
-    execTimeAct = millis();
-
+  if (millis() - egtRpmLoop >= EGTRPM_DELAY) {
+    calcRpm();
     // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
     readValuesEgt();
-
-    // We will actually process our values and change actuators every EXEC_DELAY milliseconds
-    if (freezeModeEnabled) {
-      Serial.print("\rFREEZE ");
-    } 
-    else {
-      // update output values according to input
-      calcRpm();
-      processValues();
-      updateOutputValues(false);
-    }  
-    execLoop = millis();
-
-    execTimeAct = millis() - execTimeAct;
+    processEgt();
   }
-
-
-  /* we are only going to actualy process every SERIAL_LOOP_DELAY milliseconds though we will read from our sensors every loop
-   This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
-   single time */
-
   else if ((millis() - serialLoop) >= SERIAL_DELAY) {  
 
     unsigned char data = 0;
@@ -2321,6 +2166,7 @@ void loop() {
     displayLoop = millis();
   }
 }
+
 
 
 
