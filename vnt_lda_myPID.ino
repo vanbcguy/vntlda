@@ -110,9 +110,12 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 #define EXEC_DELAY 80 //ms
 #define DISPLAY_DELAY 500 // ms
 
+<<<<<<< Updated upstream
 // PID Gain computation
 #define GAIN(g,v) (((g)*(v)+50)/100)
 
+=======
+>>>>>>> Stashed changes
 // Calculate avarage values 
 #define AVG_MAX 20 
 #define EGT_AVG_MAX 3
@@ -1776,6 +1779,14 @@ void processEgt() {
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 }
 
+<<<<<<< Updated upstream
+=======
+int gain(int g, int v) {
+  int ret;
+  ret = ((g * v + 50) / 100);
+  return ret;
+}
+>>>>>>> Stashed changes
 
 #define CVmax  255
 #define PVmax  255
@@ -1841,7 +1852,11 @@ void processValues() {
       }
 
       // Compute proportional term
+<<<<<<< Updated upstream
       controls.boostCalculatedP = GAIN(Kp, error);		// Kp * E
+=======
+      controls.boostCalculatedP = gain(Kp, error);		// Kp * E
+>>>>>>> Stashed changes
 
       if ((millis() - execLoop) >= EXEC_DELAY) {
         // now we'll integrate
@@ -1857,10 +1872,17 @@ void processValues() {
         else if (esum < 0) {
           esum = 0;
         }
+<<<<<<< Updated upstream
         controls.boostCalculatedI = GAIN(Ki, esum);	// Ki * Esum
 
           // And now the derivative
         controls.boostCalculatedD = GAIN(Kd, slope / timeChange); // Kd * PVdelta
+=======
+        controls.boostCalculatedI = gain(Ki, esum);	// Ki * Esum
+
+          // And now the derivative
+        controls.boostCalculatedD = gain(Kd, slope / timeChange); // Kd * PVdelta
+>>>>>>> Stashed changes
         pvprev = controls.mapCorrected;
       }
     }
