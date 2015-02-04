@@ -13,6 +13,7 @@
 #include <EEPROM.h>
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
+#include <SPI.h>
 #include <Adafruit_MAX31855.h>
 
 #define PIN_BUTTON A5
