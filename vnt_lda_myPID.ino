@@ -1311,6 +1311,7 @@ void pageExport(char key) {
 }
 
 unsigned int execTimeAct = 0;
+unsigned int execTimeEgtRpm = 0;
 
 void pageDataLogger(char key) {
   Serial.write(2); // stx
@@ -1336,9 +1337,11 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.mode,DEC);
   Serial.print(",");
-  Serial.print(millis()/10,DEC); 
-  Serial.print(",");
   Serial.print(execTimeAct,DEC);
+  Serial.print(",");
+  Serial.print(execTimeEgtRpm,DEC);
+  Serial.print(",");
+  Serial.print(millis(),DEC); 
   Serial.write(3);
 }
 
@@ -1895,14 +1898,11 @@ void processValues() {
     controls.vntPositionDC=0;
   }
 
-  unsigned char finalPos;
-  finalPos = controls.vntPositionDC;
-
   if (settings.options & OPTIONS_VNTOUTPUTINVERTED) {
-    controls.vntPositionRemapped = 255-finalPos;
+    controls.vntPositionRemapped = 255-controls.vntPositionDC;
   } 
   else {
-    controls.vntPositionRemapped = finalPos;  
+    controls.vntPositionRemapped = controls.vntPositionDC;  
   } 
 }
 
@@ -2119,17 +2119,19 @@ void loop() {
     Serial.print("\rFREEZE ");
   } 
   else {
-    calcRpm();
     processValues();
     updateOutputValues(false);
   }
   execTimeAct = millis() - execTimeAct;
 
+
   if (millis() - egtRpmLoop >= EGTRPM_DELAY) {
+    execTimeEgtRpm = millis();
     calcRpm();
     // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
     readValuesEgt();
     processEgt();
+    execTimeEgtRpm = millis() - execTimeEgtRpm;
   }
   else if ((millis() - serialLoop) >= SERIAL_DELAY) {  
 
