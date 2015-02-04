@@ -286,12 +286,12 @@ struct controlsStruct {
   char output2Enabled;
   unsigned char auxOutput;
 
-  int boostCalculatedP;
-  int boostCalculatedI;
-  int boostCalculatedD;
+  long boostCalculatedP;
+  long boostCalculatedI;
+  long boostCalculatedD;
 
-  int pidOutput;
-  int prevPidOutput;
+  unsigned int pidOutput;
+  unsigned int prevPidOutput;
 
   unsigned long lastTime;
 };
@@ -1683,7 +1683,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKp,3,'0');
   Serial.print(" P (");
-  Serial.print(controls.boostCalculatedP*(100*settings.boostKp/PIDControlRatio));
+  Serial.print(controls.boostCalculatedP);
   Serial.print(")");      
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1691,7 +1691,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKi,3,'0');
   Serial.print(" I (");
-  Serial.print(controls.boostCalculatedI*(100*settings.boostKi/PIDControlRatio));      
+  Serial.print(controls.boostCalculatedI);      
   Serial.print(")");            
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1700,7 +1700,7 @@ void pageServoFineTune(char key) {
   printPads(1,' ');  
   printIntWithPadding(settings.boostKd,3,'0');
   Serial.print(" D (");
-  Serial.print(controls.boostCalculatedD*(settings.boostKd/PIDControlRatio));      
+  Serial.print(controls.boostCalculatedD);      
   Serial.print(")");            
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1785,7 +1785,7 @@ void processValues() {
   int error;                    // PID error
   int slope;                    // PID slope
 
-    static long esum;		// integral
+  static long esum;		// integral
   static int pvprev;            // previous process value (for derivative calculation)
 
   // read maps
@@ -2131,7 +2131,8 @@ void loop() {
     // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
     readValuesEgt();
     processEgt();
-    execTimeEgtRpm = millis() - execTimeEgtRpm;
+    egtRpmLoop = millis();
+    execTimeEgtRpm = egtRpmLoop - execTimeEgtRpm;
   }
   else if ((millis() - serialLoop) >= SERIAL_DELAY) {  
 
