@@ -578,7 +578,7 @@ void setup() {
   digitalWrite(PIN_HEARTBEAT,LOW);  
 
   // set up screen
-  void layoutLCD();
+  layoutLCD();
 
   pageAbout(1); // force output
 }
@@ -1311,6 +1311,7 @@ void pageExport(char key) {
 
 unsigned int execTimeRead = 0;
 unsigned int execTimeAct = 0;
+unsigned int execTimeLcd = 0;
 
 void pageDataLogger(char key) {
   Serial.write(2); // stx
@@ -1336,11 +1337,13 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.mode,DEC);
   Serial.print(",");
-  Serial.print(millis()/10,DEC); 
-  Serial.print(",");
   Serial.print(execTimeRead,DEC);
   Serial.print(",");
   Serial.print(execTimeAct,DEC);
+  Serial.print(",");
+  Serial.print(execTimeLcd,DEC);
+  Serial.print(",");
+  Serial.print(millis()/10,DEC); 
   Serial.write(3);
 }
 
@@ -2066,26 +2069,6 @@ void layoutLCD() {
 byte egtState = 0;
 
 void updateLCD() { 
-  // temp added back
-  position_lcd(3,0);
-  lcd.print("/");
-  position_lcd(7,0);
-  lcd.print("k");
-  position_lcd(13,0);
-  lcd.print("rpm");
-  //         1234567890123456
-  /*    position_lcd(3,1);
-   lcd.print("/"); Temp disabled for debugging */
-  position_lcd(3,1);
-  lcd.print("C");
-
-  position_lcd(5,1);
-  lcd.print("T");
-
-  position_lcd(12,1);
-  lcd.print("A");
-  // end temp added
-
   position_lcd(0,0);
   printn_lcd(toKpaMAP(controls.mapCorrected),3);
 
@@ -2262,7 +2245,7 @@ void loop() {
     }  
     execLoop = millis();
 
-    execTimeAct = millis() - execTimeAct;
+    execTimeAct = execLoop - execTimeAct;
   }
 
 
@@ -2316,9 +2299,11 @@ void loop() {
   }
 
   else if ((millis() - displayLoop) >= DISPLAY_DELAY) {
+    execTimeLcd = millis();
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
     displayLoop = millis();
+    execTimeLcd = displayLoop - execTimeLcd;
   }
 }
 
