@@ -528,20 +528,23 @@ void setup() {
   pinMode(PIN_RPM_TRIGGER,INPUT); // Reset switch
   digitalWrite(PIN_RPM_TRIGGER,HIGH); // pullup for honeywell
 
-  attachInterrupt(0, rpmTrigger, RISING); // or falling!
-
-  setPwmFrequency(PIN_OUTPUT1, 64); // was 1024
-  setPwmFrequency(PIN_OUTPUT2, 64); // was 1024
+  attachInterrupt(0, rpmTrigger, FALLING); // or rising!
+  
+  // Let's not mess with these right now since we're not using them
+  // setPwmFrequency(PIN_OUTPUT1, 64); // was 1024
+  // setPwmFrequency(PIN_OUTPUT2, 64); // was 1024
+  // pinMode(PIN_OUTPUT1,OUTPUT);
+  // pinMode(PIN_OUTPUT2,OUTPUT);
+  
   setPwmFrequency(PIN_VNT_N75, 1024); // was 1024
   setPwmFrequency(PIN_AUX_N75, 1024); // was 1024
-  pinMode(PIN_OUTPUT1,OUTPUT);
-  pinMode(PIN_OUTPUT2,OUTPUT);
+
   pinMode(PIN_VNT_N75,OUTPUT);
   pinMode(PIN_AUX_N75,OUTPUT);
 
   pinMode(PIN_TPS,INPUT);
   pinMode(PIN_MAP,INPUT);
-  /*  pinMode(PIN_TEMP1,INPUT); */
+
   pinMode(PIN_TEMP2,INPUT);
 
   digitalWrite(PIN_TPS,LOW); // safety unconnected TPS
