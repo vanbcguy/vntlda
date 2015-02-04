@@ -562,7 +562,7 @@ void setup() {
   else {
     Serial.println("OK");
     lcd.print("OK.");
-    delay(2000);
+    delay(500);
   }
   Serial.println("\r\n");
   Serial.write(clearScreen,sizeof(clearScreen));
