@@ -562,7 +562,7 @@ void setup() {
   else {
     Serial.println("OK");
     lcd.print("OK.");
-    delay(2000);
+    delay(500);
   }
   Serial.println("\r\n");
   Serial.write(clearScreen,sizeof(clearScreen));
@@ -578,7 +578,7 @@ void setup() {
   digitalWrite(PIN_HEARTBEAT,LOW);  
 
   // set up screen
-  void layoutLCD();
+  layoutLCD();
 
   pageAbout(1); // force output
 }
@@ -1311,6 +1311,7 @@ void pageExport(char key) {
 
 unsigned int execTimeRead = 0;
 unsigned int execTimeAct = 0;
+unsigned int execTimeLcd = 0;
 
 void pageDataLogger(char key) {
   Serial.write(2); // stx
@@ -1336,11 +1337,13 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.mode,DEC);
   Serial.print(",");
-  Serial.print(millis()/10,DEC); 
-  Serial.print(",");
   Serial.print(execTimeRead,DEC);
   Serial.print(",");
   Serial.print(execTimeAct,DEC);
+  Serial.print(",");
+  Serial.print(execTimeLcd,DEC);
+  Serial.print(",");
+  Serial.print(millis()/10,DEC); 
   Serial.write(3);
 }
 
@@ -2039,6 +2042,7 @@ void updateOutputValues(bool showDebug) {
 }
 
 void layoutLCD() {
+  // Set up the LCD for later writing - clear the screen, put all the stuff that doesn't change up
   lcd.write(0xFE);
   lcd.write(0x58);
   delay(10);
@@ -2049,9 +2053,7 @@ void layoutLCD() {
   lcd.print("k");
   position_lcd(13,0);
   lcd.print("rpm");
-  //         1234567890123456
-  /*    position_lcd(3,1);
-   lcd.print("/"); Temp disabled for debugging */
+
   position_lcd(3,1);
   lcd.print("C");
 
@@ -2066,26 +2068,6 @@ void layoutLCD() {
 byte egtState = 0;
 
 void updateLCD() { 
-  // temp added back
-  position_lcd(3,0);
-  lcd.print("/");
-  position_lcd(7,0);
-  lcd.print("k");
-  position_lcd(13,0);
-  lcd.print("rpm");
-  //         1234567890123456
-  /*    position_lcd(3,1);
-   lcd.print("/"); Temp disabled for debugging */
-  position_lcd(3,1);
-  lcd.print("C");
-
-  position_lcd(5,1);
-  lcd.print("T");
-
-  position_lcd(12,1);
-  lcd.print("A");
-  // end temp added
-
   position_lcd(0,0);
   printn_lcd(toKpaMAP(controls.mapCorrected),3);
 
@@ -2100,10 +2082,6 @@ void updateLCD() {
   position_lcd(0,1);
   printn_lcd(controls.temp1,3);
 
-  /*position_lcd(4,1);
-   printn_lcd(controls.temp2,3); Temp disabled for debugging  */
-
-
   position_lcd(6,1);
   printn_lcd(controls.tpsCorrected,3);
 
@@ -2113,7 +2091,7 @@ void updateLCD() {
   if (controls.temp1 < EGT_WARN) {
     if (egtState != 1); 
     {
-      // Make the screen green again if it isn't already
+      // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
       lcd.write(0xFE);
       lcd.write(0xD0);
@@ -2262,7 +2240,7 @@ void loop() {
     }  
     execLoop = millis();
 
-    execTimeAct = millis() - execTimeAct;
+    execTimeAct = execLoop - execTimeAct;
   }
 
 
@@ -2316,9 +2294,11 @@ void loop() {
   }
 
   else if ((millis() - displayLoop) >= DISPLAY_DELAY) {
+    execTimeLcd = millis();
     // We will only update the LCD every DISPLAY_DELAY milliseconds
     updateLCD();
     displayLoop = millis();
+    execTimeLcd = displayLoop - execTimeLcd;
   }
 }
 
