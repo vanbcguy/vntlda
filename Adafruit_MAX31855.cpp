@@ -102,21 +102,21 @@ uint32_t Adafruit_MAX31855::spiread32(void) {
   uint32_t d = 0;
 
   digitalWrite(sclk, LOW);
-  _delay_ms(1);
+  _delay_us(1);
   digitalWrite(cs, LOW);
-  _delay_ms(1);
+  _delay_us(1);
 
   for (i=31; i>=0; i--)
   {
     digitalWrite(sclk, LOW);
-    _delay_ms(1);
+    _delay_us(1);
     d <<= 1;
     if (digitalRead(miso)) {
       d |= 1;
     }
 
     digitalWrite(sclk, HIGH);
-    _delay_ms(1);
+    _delay_us(1);
   }
 
   digitalWrite(cs, HIGH);
