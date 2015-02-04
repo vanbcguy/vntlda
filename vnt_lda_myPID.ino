@@ -110,12 +110,6 @@ Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
 #define EXEC_DELAY 80 //ms
 #define DISPLAY_DELAY 500 // ms
 
-<<<<<<< Updated upstream
-// PID Gain computation
-#define GAIN(g,v) (((g)*(v)+50)/100)
-
-=======
->>>>>>> Stashed changes
 // Calculate avarage values 
 #define AVG_MAX 20 
 #define EGT_AVG_MAX 3
