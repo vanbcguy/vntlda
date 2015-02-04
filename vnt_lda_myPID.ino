@@ -1779,14 +1779,11 @@ void processEgt() {
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 }
 
-<<<<<<< Updated upstream
-=======
 int gain(int g, int v) {
   int ret;
   ret = ((g * v + 50) / 100);
   return ret;
 }
->>>>>>> Stashed changes
 
 #define CVmax  255
 #define PVmax  255
