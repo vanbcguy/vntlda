@@ -79,8 +79,8 @@
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
  preSpoolProp is a static value */
-#define preSpoolInt 0.55
-#define preSpoolProp 0.45
+#define preSpoolInt 140
+#define preSpoolProp 115
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
@@ -1773,15 +1773,16 @@ void processEgt() {
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 }
 
-unsigned long execLoop = 0;
 
 #define CVmax  255
 #define PVmax  255
+unsigned long execLoop = 0;
 
 void processValues() {
   int error;                    // PID error
+  int slope;                    // PID slope
 
-  static int esum;		// integral
+    static long esum;		// integral
   static int pvprev;            // previous process value (for derivative calculation)
 
   // read maps
@@ -1792,8 +1793,6 @@ void processValues() {
   controls.tpsInput = getFilteredAvarage(&tpsAvg);
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
   controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
-    
-  int timeChange = millis() - controls.lastTime;
 
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
@@ -1815,39 +1814,56 @@ void processValues() {
     pvprev = controls.mapCorrected;                    // Keep the derivative loop primed
     controls.pidOutput = 0;                            // PID output is zero
     controls.mode = 0;                                 // System status = idling
-
+    controls.lastTime = millis();                      // Since we aren't executing the loop don't count time against it
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
     // Normal running mode
 
-    error = controls.mapCorrected - controls.vntTargetPressure;	// setpoint - process value
-    
-    if (abs(error) < errorThreshold) {
-      // Error is too small to bother with
-      error = 0;
-    }
+    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost ) {
+      // We haven't spooled up yet - use a static value for the integral
+      // May want to add a case here for 'spooled but still at low boost'
+      controls.mode = 1;              // idling
+      controls.boostCalculatedI = preSpoolInt;
+      // Since we aren't integrating, we will increase the proportional control
+      controls.boostCalculatedP = preSpoolProp;
+    } 
+    else {
+      error = controls.mapCorrected - controls.vntTargetPressure;	// setpoint - process value
+      slope = pvprev - controls.mapCorrected;                     // previous process value - current process value
 
-    // Compute proportional term
-    controls.boostCalculatedP = GAIN(Kp, error);		// Kp * E
-
-    if ((millis() - execLoop) >= EXEC_DELAY) {
-      // now we'll integrate
-      execLoop = millis();
-      esum += error;
-
-      if (esum > CVmax/Ki) {
-        esum = CVmax/Ki;
-      } 
-      else if (esum < 0) {
-        esum = 0;
+      controls.mode = 2;              // normal PID
+      if (abs(error) < errorThreshold) {
+        // Error is too small to bother with
+        error = 0;
       }
-      controls.boostCalculatedI = GAIN(Ki, esum);	// Ki * Esum
 
-        // And now the derivative
-      controls.boostCalculatedD = GAIN(Kd, pvprev - controls.mapCorrected); // Kd * PVdelta
-      pvprev = controls.mapCorrected;
+      // Compute proportional term
+      controls.boostCalculatedP = GAIN(Kp, error);		// Kp * E
+
+      if ((millis() - execLoop) >= EXEC_DELAY) {
+        // now we'll integrate
+        execLoop = millis();
+
+        int timeChange = execLoop - controls.lastTime;
+
+        esum += (long)error * timeChange;
+
+        if (esum > CVmax/Ki) {
+          esum = CVmax/Ki;
+        } 
+        else if (esum < 0) {
+          esum = 0;
+        }
+        controls.boostCalculatedI = GAIN(Ki, esum);	// Ki * Esum
+
+          // And now the derivative
+        controls.boostCalculatedD = GAIN(Kd, slope / timeChange); // Kd * PVdelta
+        pvprev = controls.mapCorrected;
+      }
     }
-
+    
+    // Store what time it was when we completed the loop
+    controls.lastTime = millis();
     // Add terms: P+I+D
     controls.pidOutput = controls.boostCalculatedP + controls.boostCalculatedI + controls.boostCalculatedD;
 
@@ -1863,10 +1879,10 @@ void processValues() {
   else {
     // We must be over max RPM, open the vanes!
     controls.pidOutput = 0;
+    controls.lastTime = millis();                      // Since we aren't executing the loop don't count time against it
   }
-  
-  // Store what time it was when we completed the loop
-  controls.lastTime = millis();
+
+
 
   controls.vntPositionDC = ((controls.pidOutput * controlSpan) / 255) + controls.vntMinDc;
 
@@ -2166,6 +2182,7 @@ void loop() {
     displayLoop = millis();
   }
 }
+
 
 
 
