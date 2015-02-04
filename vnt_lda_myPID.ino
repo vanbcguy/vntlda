@@ -2042,6 +2042,7 @@ void updateOutputValues(bool showDebug) {
 }
 
 void layoutLCD() {
+  // Set up the LCD for later writing - clear the screen, put all the stuff that doesn't change up
   lcd.write(0xFE);
   lcd.write(0x58);
   delay(10);
@@ -2052,9 +2053,7 @@ void layoutLCD() {
   lcd.print("k");
   position_lcd(13,0);
   lcd.print("rpm");
-  //         1234567890123456
-  /*    position_lcd(3,1);
-   lcd.print("/"); Temp disabled for debugging */
+
   position_lcd(3,1);
   lcd.print("C");
 
@@ -2083,10 +2082,6 @@ void updateLCD() {
   position_lcd(0,1);
   printn_lcd(controls.temp1,3);
 
-  /*position_lcd(4,1);
-   printn_lcd(controls.temp2,3); Temp disabled for debugging  */
-
-
   position_lcd(6,1);
   printn_lcd(controls.tpsCorrected,3);
 
@@ -2096,7 +2091,7 @@ void updateLCD() {
   if (controls.temp1 < EGT_WARN) {
     if (egtState != 1); 
     {
-      // Make the screen green again if it isn't already
+      // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
       lcd.write(0xFE);
       lcd.write(0xD0);
