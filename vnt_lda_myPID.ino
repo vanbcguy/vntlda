@@ -75,7 +75,7 @@
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
-#define rpmResolution 40
+#define rpmResolution 50
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
@@ -85,7 +85,7 @@
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
-#define rampThreshold 0.020
+#define rampThreshold 0.025
 #define rampFactor 2
 #define rampActive 0.20 // kPa value divided by max to yield percentage
 
