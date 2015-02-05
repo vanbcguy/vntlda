@@ -75,7 +75,7 @@
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
-#define rpmResolution 100
+#define rpmResolution 10
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
@@ -99,7 +99,7 @@
 #define fineGain 0.5
 
 /* RPM Smoothing control */
-#define rpmSmoothing 0.4 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
+#define rpmSmoothing 0.3 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
