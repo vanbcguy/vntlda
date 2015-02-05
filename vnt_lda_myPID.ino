@@ -11,7 +11,7 @@
 
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
-#include <Wire.h> 
+#include <Wire.h> r
 #include <SoftwareSerial.h>  
 #include <SPI.h>
 #include <Adafruit_MAX31855.h>
@@ -75,7 +75,7 @@
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
-#define rpmResolution 50
+#define rpmResolution 100
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
@@ -95,8 +95,11 @@
 #define overGain 2
 
 /* Fine control ratios */
-# define fineBand 0.03
-# define fineGain 0.5
+#define fineBand 0.03
+#define fineGain 0.5
+
+/* RPM Smoothing control */
+#define rpmSmoothing 0.4 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -404,20 +407,23 @@ void rpmTrigger() {
 }
 
 unsigned long rpmMicros = 0;
-unsigned long teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
+unsigned long teethSeconds = 0;
 
 void calcRpm() {
   if (teethNo > rpmResolution); 
   {
-
+    int rpm;
+    
     teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
     // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
-    controls.rpmActual = (teethSeconds * teethNo)/(micros() - rpmMicros);
+    rpm = (teethSeconds * teethNo)/(micros() - rpmMicros);
 
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
+    
+    controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
   }
 }
 
@@ -529,7 +535,7 @@ void setup() {
   pinMode(PIN_RPM_TRIGGER,INPUT); // Reset switch
   digitalWrite(PIN_RPM_TRIGGER,HIGH); // pullup for honeywell
 
-  attachInterrupt(0, rpmTrigger, FALLING); // or rising!
+  attachInterrupt(0, rpmTrigger, RISING); // or rising!
   
   // Let's not mess with these right now since we're not using them
   // setPwmFrequency(PIN_OUTPUT1, 64); // was 1024
@@ -642,12 +648,6 @@ unsigned char mapValuesSqueeze(int raw,int mapMin,int mapMax) {
 unsigned char mapInterpolate(unsigned char p1,unsigned char p2, unsigned char pos) {
   return (p1*(100-pos)+p2*pos)/100;
 }
-
-/*
-unsigned char mapLookUp(unsigned char *mapData) {
- // TODO - lookup routine which detect map type and automatically assign input input parameters 
- }
- */
 
 unsigned char mapLookUp(unsigned char *mapData,unsigned char x,unsigned char y) {
   unsigned char isInterpolated = *(mapData+2);
@@ -2296,7 +2296,9 @@ void loop() {
     displayPage(page,data);     
     serialLoop = millis();
   }
-
+  
+  /* The LCD also takes a while to update; only do the update every DISPLAY_DELAY ms as we don't need a blur where numbers should be */
+  
   else if ((millis() - displayLoop) >= DISPLAY_DELAY) {
     execTimeLcd = millis();
     // We will only update the LCD every DISPLAY_DELAY milliseconds
