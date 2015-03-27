@@ -39,9 +39,9 @@
 #define thermoCS 5
 #define thermoDO 4
 
-#define EGT_WARN 620
-#define EGT_ALARM 760
-#define EGT_MAX_READ 850
+#define EGT_WARN 700
+#define EGT_ALARM 775
+#define EGT_MAX_READ 900
 
 #define IDLE_MAX_RPM 1050
 
