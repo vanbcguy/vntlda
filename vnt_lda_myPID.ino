@@ -11,7 +11,7 @@
 
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
-#include <Wire.h> r
+#include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
 #include <Adafruit_MAX31855.h>
@@ -979,6 +979,12 @@ void pageStatusAndAdaption(char key) {
   case 'W': 
     if (settings.tpsMax+x<1024) settings.tpsMax += x; 
     break;
+  case 'e':
+    if (settings.egtMax+x<EGT_MAX_READ) settings.egtMax += x;
+    break;
+  case 'E':
+    if (settings.egtMax-x>0) settings.egtMax -= x;
+    break;
   case 'a': 
     if (settings.mapMin-x>0) settings.mapMin -= x; 
     break;
@@ -1092,13 +1098,10 @@ void pageStatusAndAdaption(char key) {
   printIntWithPadding(controls.temp1,4,' ');
   printFromFlash(statusC);
   printPads(3,' ');
+  Serial.print("Max EGT=");
+  printIntWithPadding(settings.egtMax,3,' ');
+  Serial.print(" E");
 
-  if (controls.output1Enabled) {
-    printStringWithPadding(statusOn,7,' ');
-  } 
-  else {
-    printStringWithPadding(statusOff,7,' ');
-  }
   printFromFlash(ANSIclearEolAndLf);
 
   printStringWithPadding(statusTemp2,7,' ');
