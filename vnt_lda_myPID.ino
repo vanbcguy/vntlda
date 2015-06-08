@@ -14,7 +14,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <MAX31855.h>    // Use SpeedRocket library which has a faster native read time
+#include <Adafruit_MAX31855.h>    // Use SpeedRocket library which has a faster native read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -42,7 +42,7 @@
 
 #define EGT_WARN 700
 #define EGT_ALARM 775
-#define EGT_MAX_READ 900
+#define EGT_MAX_READ 1101
 
 #define IDLE_MAX_RPM 1050
 
@@ -106,7 +106,7 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-MAX31855  MAX31855(doPin, csPin, clPin);
+Adafruit_MAX31855 thermocouple(clPin, csPin, doPin);
 
 
 // Set loop delay times
@@ -1758,7 +1758,7 @@ void readValuesMap() {
 }
 
 void readValuesEgt() {
-  controls.temp1 = MAX31855.readThermocouple(CELSIUS);
+  controls.temp1 = thermocouple.readCelsius();
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
   controls.temp2 = 0; // disabled for now as we aren't using it
 
