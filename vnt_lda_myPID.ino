@@ -14,7 +14,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <Adafruit_MAX31855.h>
+#include <MAX31855.h>    // Use RobTillaart library which has a faster native read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -35,9 +35,10 @@
 
 #define LCD_FORCE_INIT 1
 
-#define thermoCLK 6
-#define thermoCS 5
-#define thermoDO 4
+#define doPin 4
+#define csPin 5
+#define clPin 6
+
 
 #define EGT_WARN 700
 #define EGT_ALARM 775
@@ -105,7 +106,8 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);
+MAX31855 tc(clPin, csPin, doPin);
+
 
 // Set loop delay times
 #define SERIAL_DELAY 257 // ms
@@ -1759,7 +1761,8 @@ void readValuesMap() {
 }
 
 void readValuesEgt() {
-  controls.temp1 = thermocouple.readCelsius();
+  tc.read();    // Cause the chip to read the TC value
+  controls.temp1 = tc.getTemperature();
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
   controls.temp2 = 0; // disabled for now as we aren't using it
 
