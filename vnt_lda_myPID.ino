@@ -80,8 +80,8 @@
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
  preSpoolProp is a static value */
-#define preSpoolInt 0.55
-#define preSpoolProp 0.45
+#define preSpoolInt 0.75
+#define preSpoolProp 0.25
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
