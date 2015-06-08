@@ -14,7 +14,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <MAX31855.h>    // Use RobTillaart library which has a faster native read time
+#include <MAX31855.h>    // Use SpeedRocket library which has a faster native read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -106,7 +106,7 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-MAX31855 tc(clPin, csPin, doPin);
+MAX31855  MAX31855(doPin, csPin, clPin);
 
 
 // Set loop delay times
@@ -117,7 +117,6 @@ MAX31855 tc(clPin, csPin, doPin);
 
 // Calculate avarage values 
 #define AVG_MAX 20 
-#define EGT_AVG_MAX 3
 
 #define STATUS_IDLE 1
 #define STATUS_CRUISING 2
@@ -313,7 +312,6 @@ struct avgStruct {
 avgStruct tpsAvg;
 avgStruct mapAvg;
 avgStruct empAvg;
-avgStruct egtAvg;
 
 char buffer[100]; // general purpose buffer, mainly used for string storage when printing from flash
 unsigned long lastPacketTime;
@@ -580,7 +578,6 @@ void setup() {
   Serial.write(clearScreen,sizeof(clearScreen));
   tpsAvg.size=AVG_MAX;
   mapAvg.size=AVG_MAX;
-  egtAvg.size=EGT_AVG_MAX; 
 
   //initial setup of kp/ki/kd
   calcKp();
@@ -1761,23 +1758,17 @@ void readValuesMap() {
 }
 
 void readValuesEgt() {
-  tc.read();    // Cause the chip to read the TC value
-  controls.temp1 = tc.getTemperature();
+  controls.temp1 = MAX31855.readThermocouple(CELSIUS);
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
   controls.temp2 = 0; // disabled for now as we aren't using it
 
-  egtAvg.pos++;
-  if (egtAvg.pos>=egtAvg.size)
-    egtAvg.pos=0;
   if (controls.temp1<=0) {
-    egtAvg.avgData[egtAvg.pos] = 0;
+    controls.temp1 = 0;
   } 
   else if (controls.temp1 >= settings.egtMax) {
-    egtAvg.avgData[egtAvg.pos] = settings.egtMax;
-  } 
-  else {
-    egtAvg.avgData[egtAvg.pos] = controls.temp1;
-  } 
+    controls.temp1 = settings.egtMax;
+  }
+
 }
 
 void processValues() {
@@ -1817,8 +1808,7 @@ void processValues() {
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
   controls.empInput = getFilteredAvarage(&empAvg);
   controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
-  controls.egtInput = getFilteredAvarage(&egtAvg);
-  controls.egtCorrected = mapValues(controls.egtInput,settings.egtMin,settings.egtMax);
+  controls.egtCorrected = mapValues(controls.temp1,settings.egtMin,settings.egtMax);
 
   // EGT controls
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
