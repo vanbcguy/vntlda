@@ -106,7 +106,7 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-MAX31855 tc(clPin, csPin, doPin);
+MAX31855  MAX31855(doPin, csPin, clPin);
 
 
 // Set loop delay times
@@ -1758,8 +1758,7 @@ void readValuesMap() {
 }
 
 void readValuesEgt() {
-  tc.read();    // Cause the chip to read the TC value
-  controls.temp1 = tc.getTemperature();
+  controls.temp1 = MAX31855.readThermocouple(CELSIUS);
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
   controls.temp2 = 0; // disabled for now as we aren't using it
 
