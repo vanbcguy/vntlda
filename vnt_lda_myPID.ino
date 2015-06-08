@@ -14,7 +14,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <MAX31855.h>    // Use RobTillaart library which has a faster native read time
+#include <MAX31855.h>    // Use SpeedRocket library which has a faster native read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
