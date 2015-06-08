@@ -2076,28 +2076,34 @@ void layoutLCD() {
 
 
 byte egtState = 0;
+boolean lcdFlipFlop = 0;
 
 void updateLCD() { 
-  position_lcd(0,0);
-  printn_lcd(toKpaMAP(controls.mapCorrected),3);
+  if (lcdFlipFlop = 0) {
+    // Only update half the LCD each cycle. Allow more frequent updates without disturbing control loop.
+    position_lcd(0,0);
+    printn_lcd(toKpaMAP(controls.mapCorrected),3);
 
-  position_lcd(4,0);
-  /*    printn_lcd(toKpaEMP(controls.empCorrected),3); */
-  /*  Print the target pressure beside the actual pressure */
-  printn_lcd(toKpaMAP(controls.vntTargetPressure),3);
+    position_lcd(4,0);
+    /*    printn_lcd(toKpaEMP(controls.empCorrected),3); */
+    /*  Print the target pressure beside the actual pressure */
+    printn_lcd(toKpaMAP(controls.vntTargetPressure),3);
 
-  position_lcd(9,0);
-  printn_lcd(controls.rpmActual,4);
+    position_lcd(9,0);
+    printn_lcd(controls.rpmActual,4); 
+  } else {
+    position_lcd(0,1);
+    printn_lcd(controls.temp1,3);
 
-  position_lcd(0,1);
-  printn_lcd(controls.temp1,3);
+    position_lcd(6,1);
+    printn_lcd(controls.tpsCorrected,3);
 
-  position_lcd(6,1);
-  printn_lcd(controls.tpsCorrected,3);
-
-  position_lcd(13,1);
-  printn_lcd(controls.vntPositionRemapped,3);
-
+    position_lcd(13,1);
+    printn_lcd(controls.vntPositionRemapped,3);
+  }
+  
+  lcdFlipFlop += 1;
+  
   if (controls.temp1 < EGT_WARN) {
     if (egtState != 1); 
     {
