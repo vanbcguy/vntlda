@@ -2076,7 +2076,7 @@ void layoutLCD() {
 
 
 byte egtState = 0;
-boolean lcdFlipFlop = 0;
+byte lcdFlipFlop = 0;
 
 void updateLCD() { 
   if (lcdFlipFlop = 0) {
@@ -2090,7 +2090,8 @@ void updateLCD() {
     printn_lcd(toKpaMAP(controls.vntTargetPressure),3);
 
     position_lcd(9,0);
-    printn_lcd(controls.rpmActual,4); 
+    printn_lcd(controls.rpmActual,4);
+    lcdFlipFlop = 1;
   } else {
     position_lcd(0,1);
     printn_lcd(controls.temp1,3);
@@ -2100,9 +2101,8 @@ void updateLCD() {
 
     position_lcd(13,1);
     printn_lcd(controls.vntPositionRemapped,3);
+    lcdFlipFlop = 0;
   }
-  
-  lcdFlipFlop += 1;
   
   if (controls.temp1 < EGT_WARN) {
     if (egtState != 1); 
