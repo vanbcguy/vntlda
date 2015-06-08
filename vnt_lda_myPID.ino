@@ -112,7 +112,7 @@ MAX31855 tc(clPin, csPin, doPin);
 // Set loop delay times
 #define SERIAL_DELAY 257 // ms
 #define EXEC_DELAY 80 //ms
-#define DISPLAY_DELAY 500 // ms
+#define DISPLAY_DELAY 250 // ms
 
 
 // Calculate avarage values 
@@ -2079,7 +2079,7 @@ byte egtState = 0;
 byte lcdFlipFlop = 0;
 
 void updateLCD() { 
-  if (lcdFlipFlop = 0) {
+  if (lcdFlipFlop == 1 ) {
     // Only update half the LCD each cycle. Allow more frequent updates without disturbing control loop.
     position_lcd(0,0);
     printn_lcd(toKpaMAP(controls.mapCorrected),3);
@@ -2091,7 +2091,7 @@ void updateLCD() {
 
     position_lcd(9,0);
     printn_lcd(controls.rpmActual,4);
-    lcdFlipFlop = 1;
+    lcdFlipFlop = 0;
   } else {
     position_lcd(0,1);
     printn_lcd(controls.temp1,3);
@@ -2101,7 +2101,7 @@ void updateLCD() {
 
     position_lcd(13,1);
     printn_lcd(controls.vntPositionRemapped,3);
-    lcdFlipFlop = 0;
+    lcdFlipFlop = 1;
   }
   
   if (controls.temp1 < EGT_WARN) {
