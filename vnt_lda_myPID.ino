@@ -294,9 +294,6 @@ struct controlsStruct {
   float pidOutput;
   float prevPidOutput;
 
-  float rpmScale;
-  float maxIntegral;
-
   unsigned long lastTime;
   float lastInput;
 };
@@ -1855,16 +1852,6 @@ void processValues() {
     scaledInput = 0;
   }
 
-  controls.rpmScale = (float)(settings.rpmMax - controls.rpmActual + rpmSpool) / settings.rpmMax;
-
-  if (controls.rpmScale > 1.0) {
-    controls.rpmScale = 1.0;
-  }
-  else if (controls.rpmScale < 0.0) {
-    controls.rpmScale = 0;
-  }
-
-
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map 
 
@@ -1923,7 +1910,7 @@ void processValues() {
           } else {
             // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
             controls.mode = 8;                    // Normal PID
-            if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
               // If we are at the upper or lower limit then don't integrate, otherwise go ahead
               integral += Ki * scaledError * timeChange; 
             }
@@ -1932,7 +1919,7 @@ void processValues() {
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
           controls.mode = 4;                  // Overshot and still accelerating upwards
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * overGain * scaledError * timeChange;
           }
           error = Kp * overGain * scaledError;
@@ -1941,7 +1928,7 @@ void processValues() {
         if (-scaledError > maxPosErrorPct) {
           //We're quite a bit over
           controls.mode = 3;                   // Over but not steeply accelerating
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
             integral += Ki * overGain * scaledError * timeChange; 
           } 
@@ -1949,7 +1936,7 @@ void processValues() {
         } else if (abs(scaledError) < fineBand) {
           // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode, disable derivative.
           controls.mode = 7;
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * fineGain * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
@@ -1957,7 +1944,7 @@ void processValues() {
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
-          if (!(controls.prevPidOutput>=controls.rpmScale && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
             integral += Ki * scaledError * timeChange; 
           }
