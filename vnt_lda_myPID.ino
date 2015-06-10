@@ -14,12 +14,11 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <Adafruit_MAX31855.h>    // Use SpeedRocket library which has a faster native read time
+#include <Adafruit_MAX31855.h>    // Use Adafruit library modified for a faster read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
 
-/* #define PIN_TEMP1 A0 */
 #define PIN_TEMP2 A3
 #define PIN_MAP A1
 #define PIN_TPS A0
@@ -35,6 +34,7 @@
 
 #define LCD_FORCE_INIT 1
 
+// Pins for the EGT MAX31855
 #define doPin 4
 #define csPin 5
 #define clPin 6
@@ -53,16 +53,6 @@
 /* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
  or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
-
-/* RPM-based integral and proportional gain - change this value to alter the curve. Larger values will cause the integral scaling factor to back off
- faster as RPM increases while smaller numbers will cause the integral to stay larger.
- These should be moved in to the GUI settings rather than defined in code */
-/* Set rpmSpool to the RPM where your turbo starts to spool.  RPM proportional controls will be inactive below that RPM.  KiExp will adjust the
- clipping for the integral component - we limit the maximum integral based on RPM.  Changing KiExp will adjust the shape of the curve.  KpExp
- changes will adjust the proportional gain based on RPM */
-#define KiExp 0.75
-#define KpExp 0.3
-#define rpmSpool 1850
 
 /* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
  value the integral gain will be doubled causing the integral to decrease faster. */
@@ -433,9 +423,8 @@ void gotoXY(char x,char y) {
 }
 
 void modeSelect() {
-
-  //  if (digitalRead(PIN_BUTTON_MODE_SELECT) == HIGH) {
-
+  // This needs to be removed, we don't have a dual mode switch and most of the rest of the code is gone
+  
   editorMaps = editorMaps1;
 
   auxMap = auxMap1;
@@ -533,13 +522,7 @@ void setup() {
   digitalWrite(PIN_RPM_TRIGGER,HIGH); // pullup for honeywell
 
   attachInterrupt(0, rpmTrigger, RISING); // or rising!
-  
-  // Let's not mess with these right now since we're not using them
-  // setPwmFrequency(PIN_OUTPUT1, 64); // was 1024
-  // setPwmFrequency(PIN_OUTPUT2, 64); // was 1024
-  // pinMode(PIN_OUTPUT1,OUTPUT);
-  // pinMode(PIN_OUTPUT2,OUTPUT);
-  
+    
   setPwmFrequency(PIN_VNT_N75, 1024); // was 1024
   setPwmFrequency(PIN_AUX_N75, 1024); // was 1024
 
@@ -845,9 +828,6 @@ void printPads(unsigned char n, char padChar) {
   buffer[n] = 0;
   Serial.print(buffer);
 }
-
-
-
 
 // User interface functions
 void pageHeader() {
@@ -1769,30 +1749,6 @@ void readValuesEgt() {
 }
 
 void processValues() {
-
-  /* We aren't using this...
-   if (!controls.output1Enabled) {
-   if (controls.temp1 >= settings.output1EnableTemp) {
-   controls.output1Enabled = true;
-   }
-   } 
-   else {
-   if (controls.temp1 <= settings.output1EnableTemp-TEMP_HYSTERESIS) {
-   controls.output1Enabled = false;
-   }
-   }
-   
-   if (!controls.output2Enabled) {
-   if (controls.temp2 >= settings.output2EnableTemp) {
-   controls.output2Enabled = true;
-   }
-   } 
-   else {
-   if (controls.temp2 <= settings.output2EnableTemp-TEMP_HYSTERESIS) {
-   controls.output2Enabled = false;
-   }
-   }
-   */
 
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
