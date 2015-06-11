@@ -1859,9 +1859,9 @@ void processValues() {
         if (scaledError > 0) {
           // We are below setpoint
           if (scaledError < rampActive) {
-            // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum and stop integrating
+            // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum
             controls.mode = 5;                 // Under but accelerating upwards rapidly
-            integral -= Ki * underGain * scaledError * timeChange; //make the integral go backwards
+            integral += Ki * underGain * scaledError * timeChange; 
             error = Kp * underGain * scaledError;
           } else {
             // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
