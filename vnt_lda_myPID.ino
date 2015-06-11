@@ -1846,13 +1846,13 @@ void processValues() {
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
     float scaledError = scaledTarget - scaledInput;
 
-    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost ) {
+    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost && integral < preSpoolInt ) {
       // We haven't spooled up yet - use a static value for the integral
       // May want to add a case here for 'spooled but still at low boost'
       controls.mode = 1;              // idling
       integral = preSpoolInt;
-      // Since we aren't integrating, we will increase the proportional control
-      error = preSpoolProp;
+      // Still add proportional control like normal
+      error = Kp * scaledError;
     } else {
       // Turbo is producing pressure - now we can start actually controlling it
       if ( derivate > rampThreshold ) {
