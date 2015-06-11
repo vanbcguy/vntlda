@@ -1320,6 +1320,8 @@ void pageDataLogger(char key) {
   Serial.print(",");
   Serial.print(controls.mode,DEC);
   Serial.print(",");
+  Serial.print(controls.auxOutput,DEC);
+  Serial.print(",");
   Serial.print(execTimeRead,DEC);
   Serial.print(",");
   Serial.print(execTimeAct,DEC);
