@@ -397,7 +397,7 @@ unsigned long rpmMicros = 0;
 unsigned long teethSeconds = 0;
 
 void calcRpm() {
-  if (teethNo > rpmResolution); 
+  if (teethNo > rpmResolution) 
   {
     int rpm;
     
