@@ -83,14 +83,14 @@
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
 #define underGain 0.2
-#define overGain 2
+#define overGain 1.3
 
 /* Fine control ratios */
 #define fineBand 0.03
 #define fineGain 0.5
 
 /* RPM Smoothing control */
-#define rpmSmoothing 0.3 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
+#define rpmSmoothing 0.8 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -1914,6 +1914,8 @@ void processValues() {
     /* Can't have a value below zero... */
     if ( integral < 0 ) {
       integral = 0;
+    } else if ( integral > 1 ) {
+      integral = 1;
     }
 
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
