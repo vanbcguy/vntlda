@@ -206,8 +206,8 @@ unsigned char tempCalibrationMap[] = {
 };
 
 // Also used in NVRAM data store magic header
-const prog_uchar versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5a."; 
-prog_uchar statusString1[] PROGMEM  = " Active view: ";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5a."; 
+const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
 #define OPTIONS_VNTOUTPUTINVERTED 2
@@ -302,7 +302,7 @@ avgStruct empAvg;
 
 char buffer[100]; // general purpose buffer, mainly used for string storage when printing from flash
 unsigned long lastPacketTime;
-prog_uchar mapVisualitionHelp[] PROGMEM  = "Top Left is 0,0 (press: L - toggle live mode)";
+const unsigned char mapVisualitionHelp[] PROGMEM  = "Top Left is 0,0 (press: L - toggle live mode)";
 
 unsigned char page=0;
 char *pages[] = {
@@ -315,14 +315,14 @@ unsigned char *editorMaps1[]={
 unsigned char clearScreen[] =  { 
   27,'[','2','J',27,'[','H'};
 
-prog_uchar ANSIclearEol[] PROGMEM = {
+const unsigned char ANSIclearEol[] PROGMEM = {
   27,'[','K',0};
 
-prog_uchar ANSIclearEolAndLf[] PROGMEM = {
+const unsigned char ANSIclearEolAndLf[] PROGMEM = {
   27,'[','K','\r','\n',0};
-prog_uchar ANSIgoHome[] PROGMEM = {
+const unsigned char ANSIgoHome[] PROGMEM = {
   27,'[','1',';','1','H',0};
-prog_uchar ANSIclearEos[] PROGMEM = {
+const unsigned char ANSIclearEos[] PROGMEM = {
   27,'[','J',0};
 
 void setPwmFrequency(int pin, int divisor) {
@@ -700,7 +700,7 @@ char mapDebugCharValue(unsigned char c) {
 
 
 // Fetches and print string from flash to preserve some ram!
-void printFromFlash(prog_uchar *str) {
+void printFromFlash(const unsigned char *str) {
   strcpy_P(buffer, (PGM_P)str);   
   Serial.print(buffer);
 }
@@ -813,7 +813,7 @@ void printIntWithPadding(int val,unsigned char width,char padChar) {
   Serial.print(buffer+30+strlen(buffer+30)-width);
 }
 
-void printStringWithPadding(prog_uchar *str,unsigned char width,char padChar) {
+void printStringWithPadding(const unsigned char *str,unsigned char width,char padChar) {
   // print enough leading zeroes!
   memset(buffer,padChar,30);
   // append string presentation of number to end
@@ -833,7 +833,7 @@ void printPads(unsigned char n, char padChar) {
 void pageHeader() {
   //Serial.write(clearScreen,sizeof(clearScreen));    
   printFromFlash(ANSIgoHome);
-  printFromFlash((prog_uchar*)versionString);  
+  printFromFlash((const unsigned char*)versionString);  
   Serial.print(" Mode:");
   Serial.print(controls.mode,DEC);
   Serial.print(" "); 
@@ -844,9 +844,9 @@ void pageHeader() {
 }
 
 // Stored in the 32kB FLASH
-prog_uchar aboutString1[] PROGMEM  = "(c) 2011-2014 Juho Pesonen. Visit http://dmn.kuulalaakeri.org/dmn-boost-control/";
-prog_uchar aboutString2[] PROGMEM  = "Press: <space> to jump next view, or press ...";
-prog_uchar aboutString3[] PROGMEM  = "Questions? Or feedback? Send mail to dmn@qla.fi";
+const unsigned char aboutString1[] PROGMEM  = "(c) 2011-2014 Juho Pesonen. Visit http://dmn.kuulalaakeri.org/dmn-boost-control/";
+const unsigned char aboutString2[] PROGMEM  = "Press: <space> to jump next view, or press ...";
+const unsigned char aboutString3[] PROGMEM  = "Questions? Or feedback? Send mail to dmn@qla.fi";
 
 void pageAbout(char key) {
 
@@ -879,42 +879,42 @@ void pageAbout(char key) {
 } 
 
 // TPS input: 200 Corrected: 0 (low:200, high:788);
-const prog_uchar statusRPM[] PROGMEM  = "RPM actual:";
-prog_uchar statusCorrected[] PROGMEM  = " Corrected:";
-prog_uchar statusTPSinput[] PROGMEM  = "TPS input:";
-prog_uchar statusLow[] PROGMEM  = ":";
-prog_uchar statusMAPinput[] PROGMEM  = "MAP input:";
-prog_uchar statusVNTactOutput[] PROGMEM  = "VNT actuator output:";
-prog_uchar statusHeader[] PROGMEM  = "Sensor values and adaptation map limits (l=live, y=save, p/P=load, R=reset)";
+const unsigned char statusRPM[] PROGMEM  = "RPM actual:";
+const unsigned char statusCorrected[] PROGMEM  = " Corrected:";
+const unsigned char statusTPSinput[] PROGMEM  = "TPS input:";
+const unsigned char statusLow[] PROGMEM  = ":";
+const unsigned char statusMAPinput[] PROGMEM  = "MAP input:";
+const unsigned char statusVNTactOutput[] PROGMEM  = "VNT actuator output:";
+const unsigned char statusHeader[] PROGMEM  = "Sensor values and adaptation map limits (l=live, y=save, p/P=load, R=reset)";
 //                                          0123456789012345678901234567890123456789012345678901234567890123456789
-prog_uchar statusTableHeader[] PROGMEM  = "        Raw val.  Corr.val. Map min.  Map max.  Mode";
-prog_uchar statusRowTPS[] PROGMEM = "TPS";
-prog_uchar statusRowMAP[] PROGMEM = "MAP";
-prog_uchar statusRowEMP[] PROGMEM = "EMP";
-prog_uchar statusRowEGT[] PROGMEM = "EGT";
-prog_uchar statusRowRPM[] PROGMEM = "RPM";
+const unsigned char statusTableHeader[] PROGMEM  = "        Raw val.  Corr.val. Map min.  Map max.  Mode";
+const unsigned char statusRowTPS[] PROGMEM = "TPS";
+const unsigned char statusRowMAP[] PROGMEM = "MAP";
+const unsigned char statusRowEMP[] PROGMEM = "EMP";
+const unsigned char statusRowEGT[] PROGMEM = "EGT";
+const unsigned char statusRowRPM[] PROGMEM = "RPM";
 
 //                                          0123456789012345678901234567890123456789012345678901234567890123456789
-prog_uchar statusVNTtableStyleDC[] PROGMEM =  "Duty cycle";
-prog_uchar statusVNTtableStyleMAP[] PROGMEM = "Target press.";
-prog_uchar statusOpenAtIdle[] PROGMEM = "VNT Open blades when idling C";
+const unsigned char statusVNTtableStyleDC[] PROGMEM =  "Duty cycle";
+const unsigned char statusVNTtableStyleMAP[] PROGMEM = "Target press.";
+const unsigned char statusOpenAtIdle[] PROGMEM = "VNT Open blades when idling C";
 
-prog_uchar statusNone[] PROGMEM = "-";
+const unsigned char statusNone[] PROGMEM = "-";
 
-prog_uchar statusSelected[] PROGMEM = "[X] ";
-prog_uchar statusUnSelected[] PROGMEM = "[ ] ";
-prog_uchar statusVNTOutputInverted[] PROGMEM = "VNT Output Inverted J";
-prog_uchar statusControlMethodDC[] PROGMEM =       "[X] BoostDCMin = output, [ ] PID, [ ] Simulate Actuator   M";
-prog_uchar statusControlMethodPID[] PROGMEM =      "[ ] BoostDCMin = output, [X] PID, [ ] Simulate Actuator   M";
-prog_uchar statusControlMethodActuator[] PROGMEM = "[ ] BoostDCMin = output, [ ] PID, [X] Simulate Actuator   M";
+const unsigned char statusSelected[] PROGMEM = "[X] ";
+const unsigned char statusUnSelected[] PROGMEM = "[ ] ";
+const unsigned char statusVNTOutputInverted[] PROGMEM = "VNT Output Inverted J";
+const unsigned char statusControlMethodDC[] PROGMEM =       "[X] BoostDCMin = output, [ ] PID, [ ] Simulate Actuator   M";
+const unsigned char statusControlMethodPID[] PROGMEM =      "[ ] BoostDCMin = output, [X] PID, [ ] Simulate Actuator   M";
+const unsigned char statusControlMethodActuator[] PROGMEM = "[ ] BoostDCMin = output, [ ] PID, [X] Simulate Actuator   M";
 
-prog_uchar statusTemp1[] PROGMEM = "Temp1";
-prog_uchar statusTemp2[] PROGMEM = "Temp2";
-prog_uchar statusC[] PROGMEM = "°C";
-prog_uchar statusOn[] PROGMEM = " (on)  ";
-prog_uchar statusOff[] PROGMEM = " (off) ";
-prog_uchar statusFooter[] PROGMEM = "To change adaptation value, press the letter after value.";
-prog_uchar statusFooter2[] PROGMEM = "For example: q = decrease 'Map Low' for TPS / Q increase 'Map Low' for TPS";
+const unsigned char statusTemp1[] PROGMEM = "Temp1";
+const unsigned char statusTemp2[] PROGMEM = "Temp2";
+const unsigned char statusC[] PROGMEM = "°C";
+const unsigned char statusOn[] PROGMEM = " (on)  ";
+const unsigned char statusOff[] PROGMEM = " (off) ";
+const unsigned char statusFooter[] PROGMEM = "To change adaptation value, press the letter after value.";
+const unsigned char statusFooter2[] PROGMEM = "For example: q = decrease 'Map Low' for TPS / Q increase 'Map Low' for TPS";
 
 char oldKey;
 bool isLive = true;
@@ -1129,14 +1129,14 @@ void pageStatusAndAdaption(char key) {
 }
 
 
-prog_uchar statusOutput1[] PROGMEM = "Output tests:";
-prog_uchar statusOutput2[] PROGMEM = "<Q> Set output VNT output to Map min. for 2 seconds, value=";
-prog_uchar statusOutput3[] PROGMEM = "<W> Set output VNT output to Map max. for 2 seconds, value=";
-prog_uchar statusOutput4[] PROGMEM = "<E> Sweep output VNT output between min & max";
+const unsigned char statusOutput1[] PROGMEM = "Output tests:";
+const unsigned char statusOutput2[] PROGMEM = "<Q> Set output VNT output to Map min. for 2 seconds, value=";
+const unsigned char statusOutput3[] PROGMEM = "<W> Set output VNT output to Map max. for 2 seconds, value=";
+const unsigned char statusOutput4[] PROGMEM = "<E> Sweep output VNT output between min & max";
 
 
-prog_uchar statusOutput8[] PROGMEM = "<Z> Enable OUTPUT1 for 2 seconds";
-prog_uchar statusOutput9[] PROGMEM = "<X> Enable OUTPUT2 for 2 seconds";
+const unsigned char statusOutput8[] PROGMEM = "<Z> Enable OUTPUT1 for 2 seconds";
+const unsigned char statusOutput9[] PROGMEM = "<X> Enable OUTPUT2 for 2 seconds";
 
 void pageOutputTests(char key) {
 
@@ -1204,11 +1204,11 @@ void pageOutputTests(char key) {
   }
 }
 
-prog_uchar exportConf[] PROGMEM = "Configuration dump:";
-prog_uchar exportVntMap[] PROGMEM = "VNT Map dump:";
-prog_uchar exportLdaMap[] PROGMEM = "LDA Map dump:";
-prog_uchar exportBoostDCMax[] PROGMEM = "VNT Max DC Map dump:";
-prog_uchar exportBoostDCMin[] PROGMEM = "VNT Min DC Map dump:";
+const unsigned char exportConf[] PROGMEM = "Configuration dump:";
+const unsigned char exportVntMap[] PROGMEM = "VNT Map dump:";
+const unsigned char exportLdaMap[] PROGMEM = "LDA Map dump:";
+const unsigned char exportBoostDCMax[] PROGMEM = "VNT Max DC Map dump:";
+const unsigned char exportBoostDCMin[] PROGMEM = "VNT Min DC Map dump:";
 
 void pageExport(char key) {
   if (key) {
@@ -1374,8 +1374,8 @@ struct mapEditorDataStruct {
 mapEditorData;
 
 
-prog_uchar mapCurrentOutput[] PROGMEM = "Current output:";
-prog_uchar mapEditorHelp[] PROGMEM = "Press: cursor keys to move, - / + dec/inc, c/v copy/paste cell, y save";
+const unsigned char mapCurrentOutput[] PROGMEM = "Current output:";
+const unsigned char mapEditorHelp[] PROGMEM = "Press: cursor keys to move, - / + dec/inc, c/v copy/paste cell, y save";
 
 void pageMapEditor(unsigned char mapIdx,int key,boolean showCurrent=false) {    
   unsigned char *mapData = editorMaps[mapIdx];
@@ -1539,7 +1539,7 @@ void pageMapEditor(unsigned char mapIdx,int key,boolean showCurrent=false) {
 
 }
 
-prog_uchar debugHeader[] PROGMEM = "Target pres.   Actual press.  Actuator pos.  RPM  TPS";
+const unsigned char debugHeader[] PROGMEM = "Target pres.   Actual press.  Actuator pos.  RPM  TPS";
 // 0123456789012345678901234567890123456789012345678901234567890123456789
 
 
@@ -1563,19 +1563,19 @@ void pageHelp(char key) {
   }
 }
 
-prog_uchar ServoFineTunePosition[] PROGMEM = "Act. pos.: ";
-prog_uchar ServoFineTunePositionScale[] PROGMEM = "0% ----------- 25% ----------- 50% ----------- 75% -------- 100%";
+const unsigned char ServoFineTunePosition[] PROGMEM = "Act. pos.: ";
+const unsigned char ServoFineTunePositionScale[] PROGMEM = "0% ----------- 25% ----------- 50% ----------- 75% -------- 100%";
 
-prog_uchar ServoFineTuneChargePressureRequest[] PROGMEM = "Charge pressure, request:";
-prog_uchar ServoFineTuneChargePressureActual[] PROGMEM = "Charge pressure, actual:";
-prog_uchar ServoFineTuneTPS[] PROGMEM = "TPS:";
-prog_uchar ServoOutputDC[] PROGMEM = "N75 Duty Cycle:";
-prog_uchar ServoFineTuneInDamp[] PROGMEM = "In damp.:";
-prog_uchar ServoFineTuneOutDamp[] PROGMEM = "Out damp.:";
-prog_uchar ServoFineTuneP[] PROGMEM = "PID Kp:";
-prog_uchar ServoFineTuneI[] PROGMEM = "PID Ki:";
-prog_uchar ServoFineTuneD[] PROGMEM = "PID Kd:";
-prog_uchar ServoFineTuneBias[] PROGMEM = "PID Bias (10 default):";
+const unsigned char ServoFineTuneChargePressureRequest[] PROGMEM = "Charge pressure, request:";
+const unsigned char ServoFineTuneChargePressureActual[] PROGMEM = "Charge pressure, actual:";
+const unsigned char ServoFineTuneTPS[] PROGMEM = "TPS:";
+const unsigned char ServoOutputDC[] PROGMEM = "N75 Duty Cycle:";
+const unsigned char ServoFineTuneInDamp[] PROGMEM = "In damp.:";
+const unsigned char ServoFineTuneOutDamp[] PROGMEM = "Out damp.:";
+const unsigned char ServoFineTuneP[] PROGMEM = "PID Kp:";
+const unsigned char ServoFineTuneI[] PROGMEM = "PID Ki:";
+const unsigned char ServoFineTuneD[] PROGMEM = "PID Kd:";
+const unsigned char ServoFineTuneBias[] PROGMEM = "PID Bias (10 default):";
 
 void visualizeActuator(char y) {
   gotoXY(1,y);
