@@ -44,7 +44,7 @@
 #define EGT_ALARM 775
 #define EGT_MAX_READ 1101
 
-#define IDLE_MAX_RPM 1050
+#define IDLE_MAX_RPM 1150
 
 /* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
 #define MAP_SCALING_KPA 0.977 
@@ -77,12 +77,12 @@
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define rampThreshold 0.025
-#define rampFactor 2
+#define rampFactor 1.5
 #define rampActive 0.20 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
-#define underGain 0.2
+#define underGain 0.7
 #define overGain 1.3
 
 /* Fine control ratios */
@@ -90,7 +90,7 @@
 #define fineGain 0.5
 
 /* RPM Smoothing control */
-#define rpmSmoothing 0.8 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
+#define rpmSmoothing 0.5 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
