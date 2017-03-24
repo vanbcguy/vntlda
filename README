@@ -41,3 +41,9 @@ Logging
 The system can stream live data via the serial port for logging purposes.  The feature was originally implemented to be used with Meters but I have been using it as a 'Poor Mans CSV Export'.  Press the '#' key while connected via serial and the system will start streaming data in this format:
 
 <actual pressure>,<requested pressure>,<duty (8-bit)>,<accelerator (8-bit)>,<rpm>,<egt in Celsius>,<P output>,<I output>,<D output>,<rpmScale>,<final PID output>,<elapsedTime>
+
+
+Updates
+=======
+
+Patches and updates very welcome! The code is currently "good enough" for to get things done; many improvements could be made. Assistance reducing memory usage, implementing the missing EMP stuff, etc would be well received.
