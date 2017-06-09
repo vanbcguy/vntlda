@@ -39,7 +39,7 @@
 #define csPin 5
 #define clPin 6
 
-
+#define EGT_COOL 140
 #define EGT_WARN 700
 #define EGT_ALARM 775
 #define EGT_MAX_READ 1101
@@ -106,10 +106,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 
 // Calculate avarage values 
-#define AVG_MAX 20 
-
-#define STATUS_IDLE 1
-#define STATUS_CRUISING 2
+#define AVG_MAX 5 
 
 #define MAP_AXIS_TPS 0xDE
 #define MAP_AXIS_RPM 0xAD
@@ -2041,8 +2038,21 @@ void updateLCD() {
     lcdFlipFlop = 1;
   }
   
-  if (controls.temp1 < EGT_WARN) {
+  if (controls.temp1 < EGT_COOL) {
     if (egtState != 1); 
+    {
+      // Make the screen green if it isn't already
+      // set background colour - r/g/b 0-255
+      lcd.write(0xFE);
+      lcd.write(0xD0);
+      lcd.write((uint8_t)0);
+      lcd.write(50);
+      lcd.write(255);
+      egtState = 1;
+    }
+  } 
+  else if (controls.temp1 < EGT_WARN) {
+    if (egtState != 2); 
     {
       // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
@@ -2051,11 +2061,11 @@ void updateLCD() {
       lcd.write(64);
       lcd.write(255);
       lcd.write((uint8_t)0);
-      egtState = 1;
+      egtState = 2;
     }
   } 
   else if (controls.temp1 < EGT_ALARM) {
-    if (egtState != 2); 
+    if (egtState != 3); 
     {
       // Make the screen orange if it isn't already
       lcd.write(0xFE);
@@ -2063,11 +2073,11 @@ void updateLCD() {
       lcd.write(255);
       lcd.write(32);
       lcd.write((uint8_t)0);
-      egtState = 2;
+      egtState = 3;
     }
   } 
   else {
-    if (egtState != 3); 
+    if (egtState != 4); 
     {
       // Make the screen red if it isn't already
       lcd.write(0xFE);
@@ -2075,7 +2085,7 @@ void updateLCD() {
       lcd.write(255);
       lcd.write((uint8_t)0);
       lcd.write((uint8_t)0);
-      egtState = 3;
+      egtState = 4;
     }
   }        
 }
