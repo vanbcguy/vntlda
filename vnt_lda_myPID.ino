@@ -14,7 +14,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <Adafruit_MAX31855.h>    // Use Adafruit library modified for a faster read time
+#include <MAX31855.h>    // Use library written for a faster read time
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -96,8 +96,8 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-Adafruit_MAX31855 thermocouple(clPin, csPin, doPin);
-
+//Adafruit_MAX31855 thermocouple(clPin, csPin, doPin);
+MAX31855 temp(doPin, csPin, clPin );
 
 // Set loop delay times
 #define SERIAL_DELAY 257 // ms
@@ -1737,7 +1737,7 @@ void readValuesMap() {
 }
 
 void readValuesEgt() {
-  controls.temp1 = thermocouple.readCelsius();
+  controls.temp1 = temp.readThermocouple(CELSIUS);
   // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
   controls.temp2 = 0; // disabled for now as we aren't using it
 
