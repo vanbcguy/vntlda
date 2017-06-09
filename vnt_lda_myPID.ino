@@ -6,7 +6,8 @@
  - Other various small changes
  
  PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
- is based on the Arduino PID lib that I tried earlier with poor results
+ is based on the Arduino PID lib that I tried earlier with poor results (now known to be due to the slllooowwww
+ Adafruit MAX31855 library chock full of delays)
  */
 
 #include <avr/pgmspace.h>
@@ -14,7 +15,7 @@
 #include <Wire.h> 
 #include <SoftwareSerial.h>  
 #include <SPI.h>
-#include <MAX31855.h>    // Use library written for a faster read time
+#include <MAX31855.h>    // Use library written for a faster read time - https://github.com/engineertype/MAX31855
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
