@@ -47,3 +47,9 @@ Updates
 =======
 
 Patches and updates very welcome! The code is currently "good enough" for to get things done; many improvements could be made. Assistance reducing memory usage, implementing the missing EMP stuff, etc would be well received.
+
+
+Board Notes
+===========
+
+The header for the MAX31855 amplifier board really should be flipped the other way around - I made a mistake on the board layout. This can be overcome by soldering the header and terminals to the opposite side of the MAX31855 board from normal. Everthing works fine this way.
