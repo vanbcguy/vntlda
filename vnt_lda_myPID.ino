@@ -28,8 +28,6 @@
 #define PIN_RPM_TRIGGER 2
 #define PIN_VNT_N75 11    
 #define PIN_AUX_N75 3
-#define PIN_OUTPUT1 7
-#define PIN_OUTPUT2 12
 
 #define PIN_LCD 8
 
@@ -193,18 +191,9 @@ unsigned char boostDCMin1[] = {
   00,00,00,                  // lastX,lastY,lastRet
 };
 
-// R1 = 2400ohm, R2 = old style Bosch temp sensor
-unsigned char tempCalibrationMap[] = {
-  'M','1','D',
-  0x8,0x1,0xAB,0x00,0xAA,
-  // values at -64,-32,0,32, 64,96,128,160 °C
-  175+64,120+64,90+64,62+64,44+64,30+64,6+64,-55+64,
-  //    255,227,179,109,51,19,9,0,  Calculated from bosch reference, does not seem to be accurate?
-  00,00,00,                  // lastX,lastY,lastRet
-};
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.5a."; 
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6."; 
 const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -231,8 +220,6 @@ struct settingsStruct {
   unsigned char mode;
   unsigned char inDamp;
   unsigned char outDamp;
-  int output1EnableTemp;
-  int output2EnableTemp;
   char options;
   int boostKp;
   int boostKi;
@@ -270,9 +257,7 @@ struct controlsStruct {
 
   bool idling;
   int temp1;
-  int temp2;
-  char output1Enabled;
-  char output2Enabled;
+
   unsigned char auxOutput;
 
   float boostCalculatedP;
@@ -303,12 +288,12 @@ unsigned long lastPacketTime;
 const unsigned char mapVisualitionHelp[] PROGMEM  = "Top Left is 0,0 (press: L - toggle live mode)";
 
 unsigned char page=0;
-char *pages[] = {
-  "About","Adaptation","Actuator Fine-tune","Edit map: boostRequest","Edit map: boostDCMin","Edit map: boostDCMax","Edit map: Aux. device PWM map","Edit map: tempCalibration","Output Tests"};
+const char *pages[] = {
+  "About","Adaptation","Actuator Fine-tune","Edit map: boostRequest","Edit map: boostDCMin","Edit map: boostDCMax","Edit map: Aux. device PWM map","Output Tests"};
 
 unsigned char **editorMaps;
 unsigned char *editorMaps1[]={
-  boostRequest1,boostDCMin1,boostDCMax1,auxMap1,tempCalibrationMap};
+  boostRequest1,boostDCMin1,boostDCMax1,auxMap1};
 
 unsigned char clearScreen[] =  { 
   27,'[','2','J',27,'[','H'};
@@ -582,8 +567,6 @@ void loadDefaults() {
   settings.options = 0;
   settings.inDamp = 0;
   settings.outDamp = 0;
-  settings.output1EnableTemp = 85;
-  settings.output2EnableTemp = 85; 
   settings.boostKp = 30;
   settings.boostKi = 22;
   settings.boostKd = 35;
@@ -730,8 +713,6 @@ void saveToEEPROM() {
   ofs += EEPROMwriteData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
   ofs += EEPROMwriteData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
 
-  ofs += EEPROMwriteData(ofs,(byte*)&tempCalibrationMap,sizeof(tempCalibrationMap));
-
   printFromFlash(ANSIclearEolAndLf);
   Serial.print(ofs,DEC);
   Serial.print("SAVED ");
@@ -765,8 +746,6 @@ bool loadFromEEPROM(bool force) {
   ofs += EEPROMreadData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
   ofs += EEPROMreadData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
 
-  ofs += EEPROMreadData(ofs,(byte*)&tempCalibrationMap,sizeof(tempCalibrationMap));
-
   return true;
 }
 
@@ -777,11 +756,6 @@ int toKpaMAP(int raw) {
 
 int toKpaEMP(int raw) {
   return raw*EMP_SCALING_KPA;
-}
-
-int toTemperature( int rawValue) {
-  int ret = mapLookUp(tempCalibrationMap,rawValue,0);
-  return ret-64;
 }
 
 int toVoltage(int raw) {
@@ -857,7 +831,7 @@ void pageAbout(char key) {
 
     printFromFlash(aboutString2);   
     printFromFlash(ANSIclearEolAndLf);	
-    for (char i=0;i<9;i++) {
+    for (char i=0;i<8;i++) {
       printPads(11,' ');
       Serial.print("<");
       Serial.print(i,DEC);
@@ -907,7 +881,6 @@ const unsigned char statusControlMethodPID[] PROGMEM =      "[ ] BoostDCMin = ou
 const unsigned char statusControlMethodActuator[] PROGMEM = "[ ] BoostDCMin = output, [ ] PID, [X] Simulate Actuator   M";
 
 const unsigned char statusTemp1[] PROGMEM = "Temp1";
-const unsigned char statusTemp2[] PROGMEM = "Temp2";
 const unsigned char statusC[] PROGMEM = "°C";
 const unsigned char statusOn[] PROGMEM = " (on)  ";
 const unsigned char statusOff[] PROGMEM = " (off) ";
@@ -1078,18 +1051,6 @@ void pageStatusAndAdaption(char key) {
 
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(statusTemp2,7,' ');
-  printPads(1,' ');    
-  printIntWithPadding(controls.temp2,4,' ');
-  printFromFlash(statusC);
-  printPads(3,' ');
-  if (controls.output2Enabled) {
-    printStringWithPadding(statusOn,7,' ');
-  } 
-  else {
-    printStringWithPadding(statusOff,7,' ');
-  }
-
   printFromFlash(ANSIclearEolAndLf);
   printFromFlash(ANSIclearEolAndLf);
 
@@ -1132,10 +1093,6 @@ const unsigned char statusOutput2[] PROGMEM = "<Q> Set output VNT output to Map 
 const unsigned char statusOutput3[] PROGMEM = "<W> Set output VNT output to Map max. for 2 seconds, value=";
 const unsigned char statusOutput4[] PROGMEM = "<E> Sweep output VNT output between min & max";
 
-
-const unsigned char statusOutput8[] PROGMEM = "<Z> Enable OUTPUT1 for 2 seconds";
-const unsigned char statusOutput9[] PROGMEM = "<X> Enable OUTPUT2 for 2 seconds";
-
 void pageOutputTests(char key) {
 
   if (key) {
@@ -1171,18 +1128,6 @@ void pageOutputTests(char key) {
         delay(20);
       }				
       break;
-    case 'z':			
-    case 'Z':
-      controls.output1Enabled = true;
-      updateOutputValues(true);				
-      delay(2000);							
-      break;
-    case 'x':			
-    case 'X':
-      controls.output2Enabled = true;
-      updateOutputValues(true);				
-      delay(2000);							
-      break;
     }
     pageHeader();
 
@@ -1192,11 +1137,6 @@ void pageOutputTests(char key) {
     printFromFlash(statusOutput2); 
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(statusOutput4); 
-    printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(statusOutput8); 
-    printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(statusOutput9); 
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEos);
   }
@@ -1736,8 +1676,6 @@ void readValuesMap() {
 
 void readValuesEgt() {
   controls.temp1 = temp.readThermocouple(CELSIUS);
-  // controls.temp2 = toTemperature(analogRead(PIN_TEMP2)/4); 
-  controls.temp2 = 0; // disabled for now as we aren't using it
 
   if (controls.temp1<=0) {
     controls.temp1 = 0;
@@ -1982,8 +1920,6 @@ void updateOutputValues(bool showDebug) {
   // PWM output pins
   analogWrite(PIN_VNT_N75,controls.vntPositionRemapped);
   analogWrite(PIN_AUX_N75,controls.auxOutput);    
-  /*  digitalWrite(PIN_OUTPUT1,controls.output1Enabled?HIGH:LOW);   -- Disable unused outputs for the time being
-   digitalWrite(PIN_OUTPUT2,controls.output2Enabled?HIGH:LOW); */
 }
 
 void layoutLCD() {
@@ -2146,9 +2082,6 @@ void displayPage(char page,char data) {
     pageMapEditor(3,data);
     break;			
   case 7:
-    pageMapEditor(4,data);
-    break;            			
-  case 8:
     pageOutputTests(data);
     visualizeActuator(28);
     break;
