@@ -1,0 +1,27 @@
+#######################################
+# Syntax Coloring Map For MAX31855
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+MAX31855	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+readThermocouple	KEYWORD2
+readJunction	KEYWORD2
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+FAULT_OPEN	LITERAL1
+FAULT_SHORT_GND	LITERAL1
+FAULT_SHORT_VCC	LITERAL1
+NO_MAX31855	LITERAL1
+CELSIUS	LITERAL1
+FAHRENHEIT	LITERAL1
