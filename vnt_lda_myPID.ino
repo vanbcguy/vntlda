@@ -103,7 +103,7 @@ MAX31855 temp(doPin, csPin, clPin );
 #define DISPLAY_DELAY 250 // ms
 
 
-// Calculate avarage values 
+// Calculate Average values 
 #define AVG_MAX 5 
 
 #define MAP_AXIS_TPS 0xDE
@@ -423,6 +423,14 @@ void setup_lcd() {
 
   lcd.begin(9600);        
 
+  // set the splash screen
+  lcd.write(0xFE);
+  lcd.write(0x40);
+  strcpy_P(buffer, (PGM_P)&versionString);   
+  lcd.print(buffer);
+  delay(10);
+  
+
   // set the contrast, 200 is a good place to start, adjust as desired
   lcd.write(0xFE);
   lcd.write(0x50);
@@ -483,15 +491,10 @@ void calcKd() {
 
 void setup() {
   modeSelect();
-  delay(2000);    // Wait for LCD to actually start up
+  delay(2500);    // Wait for LCD to actually start up
   setup_lcd();
 
-  // Print a message to the LCD.
-  strcpy_P(buffer, (PGM_P)&versionString);   
-  lcd.print(buffer);  
-
   Serial.begin(115200);
-  //	Serial.begin(19200);
   Serial.print("Boot:");
 
   pinMode(PIN_HEARTBEAT,OUTPUT); // DEBUG led
@@ -537,6 +540,7 @@ void setup() {
   }
   Serial.println("\r\n");
   Serial.write(clearScreen,sizeof(clearScreen));
+  
   tpsAvg.size=AVG_MAX;
   mapAvg.size=AVG_MAX;
 
@@ -1621,7 +1625,7 @@ void pageServoFineTune(char key) {
 }
 
 
-int getFilteredAvarage(struct avgStruct *a) {
+int getFilteredAverage(struct avgStruct *a) {
   int minVal = 0;
   int maxVal = 255;
   long int avgAll = 0;
@@ -1675,11 +1679,11 @@ void processValues() {
 
 
   controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
-  controls.mapInput = getFilteredAvarage(&mapAvg);
+  controls.mapInput = getFilteredAverage(&mapAvg);
   controls.mapCorrected = mapValues(controls.mapInput,settings.mapMin,settings.mapMax);
-  controls.tpsInput = getFilteredAvarage(&tpsAvg);
+  controls.tpsInput = getFilteredAverage(&tpsAvg);
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
-  controls.empInput = getFilteredAvarage(&empAvg);
+  controls.empInput = getFilteredAverage(&empAvg);
   controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
   controls.egtCorrected = mapValues(controls.temp1,settings.egtMin,settings.egtMax);
 
