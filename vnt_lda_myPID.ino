@@ -486,6 +486,7 @@ void calcKd() {
 
 void setup() {
   modeSelect();
+  delay(2000);    // Wait for LCD to actually start up
   setup_lcd();
 
   // Print a message to the LCD.
@@ -1950,6 +1951,9 @@ byte egtState = 0;
 byte lcdFlipFlop = 0;
 
 void updateLCD() { 
+  
+  digitalWrite(PIN_HEARTBEAT,lcdFlipFlop);  // Flash the onboard LED, confirms the program is running
+  
   if (lcdFlipFlop == 1 ) {
     // Only update half the LCD each cycle. Allow more frequent updates without disturbing control loop.
     position_lcd(0,0);
