@@ -491,7 +491,7 @@ void calcKd() {
 
 void setup() {
   modeSelect();
-  delay(2500);    // Wait for LCD to actually start up
+  delay(1500);    // Wait for LCD to actually start up
   setup_lcd();
 
   Serial.begin(115200);
@@ -1912,23 +1912,13 @@ void layoutLCD() {
   // Set up the LCD for later writing - clear the screen, put all the stuff that doesn't change up
   lcd.write(0xFE);
   lcd.write(0x58);
-  delay(10);
+  delay(100);
 
-  position_lcd(3,0);
-  lcd.print("/");
-  position_lcd(7,0);
-  lcd.print("k");
-  position_lcd(13,0);
-  lcd.print("rpm");
+  position_lcd(0,0);
+  lcd.print(F("000/000k 0000rpm"));
 
-  position_lcd(3,1);
-  lcd.print("C");
-
-  position_lcd(5,1);
-  lcd.print("T");
-
-  position_lcd(12,1);
-  lcd.print("A");
+  position_lcd(0,1);
+  lcd.print(F("000C T000   A000"));
 }
 
 
