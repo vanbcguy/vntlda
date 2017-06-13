@@ -95,7 +95,6 @@
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-//Adafruit_MAX31855 thermocouple(clPin, csPin, doPin);
 MAX31855 temp(doPin, csPin, clPin );
 
 // Set loop delay times
@@ -193,7 +192,7 @@ unsigned char boostDCMin1[] = {
 
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6."; 
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6a."; 
 const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -218,8 +217,6 @@ struct settingsStruct {
   int rpmMax; 	
   int rpmTeethsPerRotation;
   unsigned char mode;
-  unsigned char inDamp;
-  unsigned char outDamp;
   char options;
   int boostKp;
   int boostKi;
@@ -566,8 +563,6 @@ void loadDefaults() {
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.options = 0;
-  settings.inDamp = 0;
-  settings.outDamp = 0;
   settings.boostKp = 30;
   settings.boostKi = 22;
   settings.boostKd = 35;
@@ -902,18 +897,6 @@ void pageStatusAndAdaption(char key) {
   case 'l':
   case 'L': 
     isLive=!isLive; 
-    break;
-  case 'i': 
-    if (settings.inDamp-x>0) settings.inDamp -= x; 
-    break;
-  case 'I': 
-    if (settings.inDamp+x<64) settings.inDamp += x; 
-    break;
-  case 'o': 
-    if (settings.outDamp-x>0) settings.outDamp -= x; 
-    break;
-  case 'O': 
-    if (settings.outDamp+x<64) settings.outDamp += x; 
     break;
   case 'q': 
     if (settings.tpsMin-x>0) settings.tpsMin -= x; 
@@ -1509,8 +1492,6 @@ const unsigned char ServoFineTuneChargePressureRequest[] PROGMEM = "Charge press
 const unsigned char ServoFineTuneChargePressureActual[] PROGMEM = "Charge pressure, actual:";
 const unsigned char ServoFineTuneTPS[] PROGMEM = "TPS:";
 const unsigned char ServoOutputDC[] PROGMEM = "N75 Duty Cycle:";
-const unsigned char ServoFineTuneInDamp[] PROGMEM = "In damp.:";
-const unsigned char ServoFineTuneOutDamp[] PROGMEM = "Out damp.:";
 const unsigned char ServoFineTuneP[] PROGMEM = "PID Kp:";
 const unsigned char ServoFineTuneI[] PROGMEM = "PID Ki:";
 const unsigned char ServoFineTuneD[] PROGMEM = "PID Kd:";
