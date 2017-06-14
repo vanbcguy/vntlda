@@ -816,9 +816,10 @@ void pageHeader() {
 }
 
 // Stored in the 32kB FLASH
-const unsigned char aboutString1[] PROGMEM  = "(c) 2011-2014 Juho Pesonen. Visit http://dmn.kuulalaakeri.org/dmn-boost-control/";
-const unsigned char aboutString2[] PROGMEM  = "Press: <space> to jump next view, or press ...";
-const unsigned char aboutString3[] PROGMEM  = "Questions? Or feedback? Send mail to dmn@qla.fi";
+const unsigned char aboutString1[] PROGMEM  = "Original code (c) 2011-2014 Juho Pesonen. Visit http://dmn.kuulalaakeri.org/dmn-boost-control/";
+const unsigned char aboutString2[] PROGMEM  = "PID and EGT control (c) 2014-2017 Bryn Hughes. Visit https://github.com/vanbcguy/vntlda";
+const unsigned char aboutString3[] PROGMEM  = "Press: <space> to jump next view, or press ...";
+const unsigned char aboutString4[] PROGMEM  = "Questions? Or feedback? Send mail to linux@nashira.ca";
 
 void pageAbout(char key) {
 
@@ -827,9 +828,11 @@ void pageAbout(char key) {
     pageHeader();
     printFromFlash(aboutString1);   
     printFromFlash(ANSIclearEolAndLf);
+    printFromFlash(aboutString2);   
+    printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
-    printFromFlash(aboutString2);   
+    printFromFlash(aboutString3);   
     printFromFlash(ANSIclearEolAndLf);	
     for (char i=0;i<8;i++) {
       printPads(11,' ');
@@ -841,7 +844,7 @@ void pageAbout(char key) {
     }
     printFromFlash(ANSIclearEolAndLf);
 
-    printFromFlash(aboutString3);   
+    printFromFlash(aboutString4);   
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
