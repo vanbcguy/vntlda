@@ -1221,7 +1221,6 @@ unsigned int execTimeAct = 0;
 unsigned int execTimeLcd = 0;
 
 void pageDataLogger(char key) {
-  Serial.write(2); // stx
   Serial.print(toKpaMAP(controls.mapCorrected),DEC);
   Serial.print(F(","));
   Serial.print(toKpaMAP(controls.vntTargetPressure),DEC);
@@ -1253,7 +1252,7 @@ void pageDataLogger(char key) {
   Serial.print(execTimeLcd,DEC);
   Serial.print(F(","));
   Serial.print(millis()/10,DEC); 
-  Serial.write(3);
+  printFromFlash(ANSIclearEolAndLf);
 }
 
 void printMapAxis(unsigned char axisType,unsigned char idx,bool verbose) {
