@@ -53,3 +53,15 @@ Board Notes
 ===========
 
 The header for the MAX31855 amplifier board really should be flipped the other way around - I made a mistake on the board layout. This can be overcome by soldering the header and terminals to the opposite side of the MAX31855 board from normal. Everthing works fine this way.
+
+LCD Setup
+=========
+
+This program expects to see an Adafruit RGB serial LCD backpack. It also expects the serial LCD backpack to have been configured for 115200 baud already - the display will appear corrupted if the baud rate of the LCD does not match the program rate. While I have tested successfully at 9600 baud (the Adafruit default) by far the longest running part of the program is the actual LCD update routine - while the VNT control stuff takes only a couple of ms (even with lots of float divisions!) the LCD update takes about 26-28ms at 9600 baud. It takes only 2ms at 115200 so your controller will be much happier with the faster rate. Remember it cannot calculate anything while it's writing to the LCD!
+
+To set the baud rate on a fresh serial backpack plug it in via USB. USB doesn't make use of the baud rate so you can set it up no matter what the current settings are. Issue the following commands:
+
+# stty -F /dev/ttyACM0 9600 -parenb cs8 -cstopb -crtscts
+# echo -e "\xFE\x39\x08" > /dev/ttyACM0
+
+The baud rate setting is stored on the LCD's EEPROM and will be briefly displayed at startup allowing you to verify the setting was saved successfully.
