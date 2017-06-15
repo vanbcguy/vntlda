@@ -38,6 +38,12 @@
 #define csPin 5
 #define clPin 6
 
+// Set up the LCD pin
+SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
+
+// Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
+MAX31855 temp(doPin, csPin, clPin );
+
 #define EGT_COOL 140
 #define EGT_WARN 700
 #define EGT_ALARM 775
@@ -91,11 +97,6 @@
 /* RPM Smoothing control */
 #define rpmSmoothing 0.5 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
 
-// Set up the LCD pin
-SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
-
-// Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
-MAX31855 temp(doPin, csPin, clPin );
 
 // Set loop delay times
 #define SERIAL_DELAY 257 // ms
@@ -197,12 +198,6 @@ const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
 #define OPTIONS_VNTOUTPUTINVERTED 2
-
-#define METHOD_DUTYCYCLEMAP 0
-#define METHOD_PID 1
-#define METHOD_SIMULATE_ACTUATOR 2
-
-#define TEMP_HYSTERESIS 3
 
 // contains configurable data. Can be stored in eeprom
 struct settingsStruct {
@@ -1718,17 +1713,17 @@ void processValues() {
   // EGT controls
   controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
 
-  // TODO add RPM hysterisis
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
   } 
-  else if ( controls.rpmActual < IDLE_MAX_RPM ) {    
+  else if ( controls.rpmActual < IDLE_MAX_RPM ) {    // Accelerator is at zero and we are in the idle speed band
     controls.idling = true;
   }
   else {
-    controls.idling = false;
+    controls.idling = false;                         // Most likely coasting right now; continue proportional behavior
   }
 
+  // Ensure inputs are valid
   if (scaledInput>1.0) {
     scaledInput = 1.0;
   } 
@@ -1739,13 +1734,18 @@ void processValues() {
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map 
 
-    controls.vntTargetPressure = 0;                    // We don't want any pressure
+    controls.vntTargetPressure = 0;                    // Display zero target pressure on the LCD at idle
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
     integral = 0;                                      // Only you can prevent integral windup at idle
     error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
     derivate = 0;                                      // See above
-    controls.pidOutput=0;                              // Final output is zero - we aren't trying to do anything
     controls.mode = 0;                                 // System status = idling
+    
+    if (settings.options & OPTIONS_VANESOPENIDLE) {
+      controls.pidOutput=0;                            // Final output is zero - we aren't trying to do anything
+    } else {
+      controls.pidOutput=1.0;                          // Set to whatever the max on the map is
+    }
     
   } 
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
@@ -1863,7 +1863,7 @@ void processValues() {
   }
 
 
-  // now = millis();   // This was set above, if we set it again here we aren't counting the time we spent processing?
+  // Count the time we spent processing
   controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
@@ -1885,10 +1885,6 @@ void processValues() {
    but I'm not quite ready to remove this */
   if (controls.vntPositionDC>controls.vntMaxDc)
     controls.vntPositionDC=controls.vntMaxDc;
-
-  if ((settings.options & OPTIONS_VANESOPENIDLE)) {  // Open the vanes fully if set that way
-    controls.vntPositionDC=0;
-  }
 
   /* Display these as real numbers - will make the logs more useful as we can try different values */
   controls.boostCalculatedP=(error);
