@@ -31,7 +31,7 @@
 
 #define PIN_LCD 8
 
-#define LCD_FORCE_INIT 1
+#define LCD_BAUD_RATE 115200
 
 // Pins for the EGT MAX31855
 #define doPin 4
@@ -420,8 +420,8 @@ void modeSelect() {
 void setup_lcd() {
   // Put all the LCD setup stuff here, we will call this from
   // the "setup" loop
-
-  lcd.begin(9600);        
+ 
+  lcd.begin(LCD_BAUD_RATE);        
 
   // set the splash screen
   lcd.write(0xFE);
@@ -1677,6 +1677,31 @@ void readValuesEgt() {
 
 void processValues() {
 
+  unsigned long now = millis();
+  int timeChange = now - controls.lastTime;
+
+  static float error;
+  static float integral;
+  static float derivate;
+
+  float controlSpan;
+  float inputSpan;
+
+  float scaledInput;
+  float scaledTarget;
+  float scaledBias;
+
+  float toControlVNT;
+
+  /* This is the available span of our DC - we can only go between min and max */
+  controlSpan = controls.vntMaxDc - controls.vntMinDc;
+
+  /* This is the available span of our input - we can only go between 0-255 */
+  inputSpan = 255.0;
+
+  /* Make the input a percentage of the availble input span */
+  scaledInput = (float)controls.mapCorrected / inputSpan; 
+  
   controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
 
@@ -1703,30 +1728,6 @@ void processValues() {
   else {
     controls.idling = false;
   }
-  unsigned long now = millis();
-  int timeChange = now - controls.lastTime;
-
-  static float error;
-  static float integral;
-  static float derivate;
-
-  float controlSpan;
-  float inputSpan;
-
-  float scaledInput;
-  float scaledTarget;
-  float scaledBias;
-
-  float toControlVNT;
-
-  /* This is the available span of our DC - we can only go between min and max */
-  controlSpan = controls.vntMaxDc - controls.vntMinDc;
-
-  /* This is the available span of our input - we can only go between 0-255 */
-  inputSpan = 255.0;
-
-  /* Make the input a percentage of the availble input span */
-  scaledInput = (float)controls.mapCorrected / inputSpan; 
 
   if (scaledInput>1.0) {
     scaledInput = 1.0;
