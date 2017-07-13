@@ -502,8 +502,8 @@ void setup() {
 
   attachInterrupt(0, rpmTrigger, RISING); // or rising!
     
-  setPwmFrequency(PIN_VNT_N75, 1024); // was 1024
-  setPwmFrequency(PIN_AUX_N75, 1024); // was 1024
+  setPwmFrequency(PIN_VNT_N75, 128); // was 1024
+  setPwmFrequency(PIN_AUX_N75, 128); // was 1024
 
   pinMode(PIN_VNT_N75,OUTPUT);
   pinMode(PIN_AUX_N75,OUTPUT);
