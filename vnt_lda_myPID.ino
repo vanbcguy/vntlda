@@ -16,6 +16,7 @@
 #include <SoftwareSerial.h>  
 #include <SPI.h>
 #include <MAX31855.h>    // Use library written for a faster read time - https://github.com/engineertype/MAX31855
+#include <ResponsiveAnalogRead.h>
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -37,6 +38,10 @@
 #define doPin 4
 #define csPin 5
 #define clPin 6
+
+ResponsiveAnalogRead map_read(PIN_MAP, true);
+ResponsiveAnalogRead tps_read(PIN_TPS, true);
+ResponsiveAnalogRead rpm_read(0, true);
 
 // Set up the LCD pin
 SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
@@ -389,7 +394,10 @@ void calcRpm() {
 
     // attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
     
-    controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
+    // controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
+
+    rpm_read.update(rpm);
+    controls.rpmActual = rpm_read.getValue();
 
     if (controls.rpmActual > settings.rpmMax) {
       controls.rpmActual = 0;
@@ -1652,27 +1660,37 @@ int getFilteredAverage(struct avgStruct *a) {
 }
 
 void readValuesTps() {
-  tpsAvg.pos++;
-  if (tpsAvg.pos>=tpsAvg.size)
-    tpsAvg.pos=0;
-  tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
+  tps_read.update();
+//  tpsAvg.pos++;
+//  if (tpsAvg.pos>=tpsAvg.size)
+//    tpsAvg.pos=0;
+//  tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
 }
 
 void readValuesMap() {
-  mapAvg.pos++;
-  if (mapAvg.pos>=mapAvg.size)
-    mapAvg.pos=0;
-  mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
+  map_read.update();
+//  mapAvg.pos++;
+//  if (mapAvg.pos>=mapAvg.size)
+//    mapAvg.pos=0;
+//  mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
 }
 
 void readValuesEgt() {
-  controls.temp1 = temp.readThermocouple(CELSIUS);
+  int egtread;
+  
+  egtread = temp.readThermocouple(CELSIUS);
 
-  if (controls.temp1<=0) {
+  if (egtread<=0) {
     controls.temp1 = 0;
   } 
-  else if (controls.temp1 >= settings.egtMax) {
+  else if (egtread >= 10000) {        // MAX31855 library returns > 10000 when there was a problem reading 
+    controls.temp1 = controls.temp1;
+  }
+  else if (egtread >= settings.egtMax) {
     controls.temp1 = settings.egtMax;
+  }
+  else {
+    controls.temp1 = egtread;
   }
 
 }
@@ -1709,9 +1727,9 @@ void processValues() {
 
 
   controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
-  controls.mapInput = getFilteredAverage(&mapAvg);
+  controls.mapInput = map_read.getValue();
   controls.mapCorrected = mapValues(controls.mapInput,settings.mapMin,settings.mapMax);
-  controls.tpsInput = getFilteredAverage(&tpsAvg);
+  controls.tpsInput = tps_read.getValue();
   controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
   controls.empInput = getFilteredAverage(&empAvg);
   controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
