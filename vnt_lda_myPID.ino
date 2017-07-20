@@ -137,8 +137,8 @@ unsigned char auxMap1[] = {
   0,0,0,0,0,
   0,0,0,0,0,
   0,0,0,0,0,
-  60,60,60,60,255,
-  255,255,255,255,255,
+  60,60,60,60,210,
+  210,210,210,210,210,
   00,00,00,                  // lastX,lastY,lastRet
 };
 
@@ -375,6 +375,8 @@ void calcRpm() {
   if (teethNo > rpmResolution) 
   {
     int rpm;
+
+    // detachInterrupt(0); // don't trigger increments while we're calculating
     
     teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
@@ -384,8 +386,14 @@ void calcRpm() {
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
+
+    // attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
     
     controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
+
+    if (controls.rpmActual > settings.rpmMax) {
+      controls.rpmActual = 0;
+    }
   }
 }
 
