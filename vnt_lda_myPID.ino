@@ -1830,7 +1830,7 @@ void processValues() {
           if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * overGain * scaledError * timeChange;
           }
-          error = Kp * overGain * scaledError;
+          error = Kp * scaledError;
         }
       } else {
         if (-scaledError > maxPosErrorPct) {
