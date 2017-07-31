@@ -1842,7 +1842,7 @@ void processValues() {
           }
           error = Kp * overGain * scaledError;
         } else if (abs(scaledError) < fineBand) {
-          // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode, disable derivative.
+          // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode.
           controls.mode = 7;
           if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * fineGain * scaledError * timeChange;
