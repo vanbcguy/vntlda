@@ -1,19 +1,19 @@
-/* 
- VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
- - Rewritten PID loop
- - Support added for EGT probe with LDA control based on EGTs
- - Support for EMP sensor to display EMP values (no control map yet)
- - Other various small changes
- 
- PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
- is based on the Arduino PID lib that I tried earlier with poor results (now known to be due to the slllooowwww
- Adafruit MAX31855 library chock full of delays)
- */
+/*
+  VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
+  - Rewritten PID loop
+  - Support added for EGT probe with LDA control based on EGTs
+  - Support for EMP sensor to display EMP values (no control map yet)
+  - Other various small changes
+
+  PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
+  is based on the Arduino PID lib that I tried earlier with poor results (now known to be due to the slllooowwww
+  Adafruit MAX31855 library chock full of delays)
+*/
 
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
-#include <Wire.h> 
-#include <SoftwareSerial.h>  
+#include <Wire.h>
+#include <SoftwareSerial.h>
 #include <SPI.h>
 #include <MAX31855.h>    // Use library written for a faster read time - https://github.com/engineertype/MAX31855
 #include <ResponsiveAnalogRead.h>
@@ -27,7 +27,7 @@
 #define PIN_EMP A2
 
 #define PIN_RPM_TRIGGER 2
-#define PIN_VNT_N75 11    
+#define PIN_VNT_N75 11
 #define PIN_AUX_N75 3
 
 #define PIN_LCD 8
@@ -44,12 +44,12 @@ ResponsiveAnalogRead tps_read(PIN_TPS, true);
 ResponsiveAnalogRead rpm_read(0, true);
 
 // Set up the LCD pin
-SoftwareSerial lcd = SoftwareSerial(0,PIN_LCD); 
+SoftwareSerial lcd = SoftwareSerial(0, PIN_LCD);
 
 // Set up the thermocouple pins (Adafruit MAX31855 thermocouple interface)
 MAX31855 temp(doPin, csPin, clPin );
 
-#define EGT_COOL 140
+#define EGT_COOL 165
 #define EGT_WARN 700
 #define EGT_ALARM 775
 #define EGT_MAX_READ 1101
@@ -57,43 +57,43 @@ MAX31855 temp(doPin, csPin, clPin );
 #define IDLE_MAX_RPM 1150
 
 /* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
-#define MAP_SCALING_KPA 0.977 
-#define EMP_SCALING_KPA 1.953 
+#define MAP_SCALING_KPA 0.977
+#define EMP_SCALING_KPA 1.953
 
 /* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
- or if you need to have large multipliers then decrease this */
+  or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
 
 /* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
- value the integral gain will be doubled causing the integral to decrease faster. */
+  value the integral gain will be doubled causing the integral to decrease faster. */
 #define maxPosErrorPct 0.10
 
 /* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
- PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
- fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
- sensor. */
+  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
+  fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
+  sensor. */
 #define PIDMaxBoost 0.95
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
- a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
+  a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
 #define rpmResolution 10
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
- get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. 
- preSpoolProp is a static value */
+  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things.
+  preSpoolProp is a static value */
 #define preSpoolInt 0.75
 #define preSpoolProp 0.25
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
 #define rampThreshold 0.025
-#define rampFactor 1.5
+#define rampFactor 1.0  // currently disabled - seeing excessive pullback
 #define rampActive 0.20 // kPa value divided by max to yield percentage
 
 /* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
    overGain */
-#define underGain 0.7
-#define overGain 1.3
+#define underGain 0.8
+#define overGain 1.05
 
 /* Fine control ratios */
 #define fineBand 0.03
@@ -104,13 +104,13 @@ MAX31855 temp(doPin, csPin, clPin );
 
 
 // Set loop delay times
-#define SERIAL_DELAY 257 // ms
-#define EXEC_DELAY 80 //ms
+#define SERIAL_DELAY 107 // ms
+#define EXEC_DELAY 50 //ms
 #define DISPLAY_DELAY 250 // ms
 
 
-// Calculate Average values 
-#define AVG_MAX 5 
+// Calculate Average values
+#define AVG_MAX 5
 
 #define MAP_AXIS_TPS 0xDE
 #define MAP_AXIS_RPM 0xAD
@@ -121,84 +121,84 @@ MAX31855 temp(doPin, csPin, clPin );
 #define MAP_AXIS_RAW 0x0
 #define MAP_AXIS_EGT 0xAE
 
-unsigned char *auxMap,*boostRequest,*boostDCMax,*boostDCMin;
+unsigned char *auxMap, *boostRequest, *boostDCMax, *boostDCMin;
 
 /*
-MAP format:
- 
- 'M','2','D'   // D - interpolated maps, d - nearest neighbor
- xsize,ysize,x-axis-type,y-axis-type,output-type,
- data[xsize,ysize],
- lastX,lastY,lastRet // automatically filled when used mapLookup
- 
- */
+  MAP format:
+
+  'M','2','D'   // D - interpolated maps, d - nearest neighbor
+  xsize,ysize,x-axis-type,y-axis-type,output-type,
+  data[xsize,ysize],
+  lastX,lastY,lastRet // automatically filled when used mapLookup
+
+*/
 
 unsigned char auxMap1[] = {
-  'M','2','D',
-  0x5,0x8,MAP_AXIS_RPM,MAP_AXIS_EGT,MAP_AXIS_DUTY_CYCLE,     // 01 - new version 
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  0,0,0,0,0,
-  60,60,60,60,210,
-  210,210,210,210,210,
-  00,00,00,                  // lastX,lastY,lastRet
+  'M', '2', 'D',
+  0x5, 0x8, MAP_AXIS_RPM, MAP_AXIS_EGT, MAP_AXIS_DUTY_CYCLE, // 01 - new version
+  0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+  60, 60, 60, 60, 210,
+  210, 210, 210, 210, 210,
+  00, 00, 00,                // lastX,lastY,lastRet
 };
 
 
 unsigned char boostRequest1[] = {
-  'M','2','D',
-  0xA,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_KPA,     // 01 - new version 
-  0,20,20,20,20,20,20,20,20,20,
-  0,20,20,20,20,20,20,20,20,20,
-  0,40,40,40,40,40,40,40,40,20,
-  0,65,65,65,65,65,65,65,65,40,
-  0,65,65,65,65,65,65,65,65,40,
-  0,83,83,83,83,83,83,83,83,80,
-  0,83,83,83,83,83,83,83,83,90,
-  0,83,100,100,100,100,100,100,100,90,
-  0,50,85,190,185,200,200,200,200,90,
-  0,50,85,190,185,200,200,200,200,90,
-  00,00,00,                  // lastX,lastY,lastRet
+  'M', '2', 'D',
+  0xA, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_KPA, // 01 - new version
+  0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
+  0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
+  0, 40, 40, 40, 40, 40, 40, 40, 40, 20,
+  0, 65, 65, 65, 65, 65, 65, 65, 65, 40,
+  0, 65, 65, 65, 65, 65, 65, 65, 65, 40,
+  0, 83, 83, 83, 83, 83, 83, 83, 83, 80,
+  0, 83, 83, 83, 83, 83, 83, 83, 83, 90,
+  0, 83, 100, 100, 100, 100, 100, 100, 100, 90,
+  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
+  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
+  00, 00, 00,                // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMax1[] = {
-  'M','2','D',
-  0x8,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,200,200,200,200,200,200,80,
-  200,185,180,180,180,180,180,80,
-  200,185,170,170,170,170,170,80,
-  00,00,00,                  // lastX,lastY,lastRet
+  'M', '2', 'D',
+  0x8, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 200, 200, 200, 200, 200, 200, 80,
+  200, 185, 180, 180, 180, 180, 180, 80,
+  200, 185, 170, 170, 170, 170, 170, 80,
+  00, 00, 00,                // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMin1[] = {
-  'M','2','D',
-  0x8,0xA,MAP_AXIS_RPM,MAP_AXIS_TPS,MAP_AXIS_DUTY_CYCLE,
-  0,0,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  0,70,70,70,70,70,70,70,
-  00,00,00,                  // lastX,lastY,lastRet
+  'M', '2', 'D',
+  0x8, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0, 0, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  00, 00, 00,                // lastX,lastY,lastRet
 };
 
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6a."; 
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6a.";
 const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -214,7 +214,7 @@ struct settingsStruct {
   int egtMax;
   int empMin;
   int empMax;
-  int rpmMax; 	
+  int rpmMax;
   int rpmTeethsPerRotation;
   unsigned char mode;
   char options;
@@ -239,10 +239,10 @@ struct controlsStruct {
   unsigned char empCorrected;
   char mode; // operating mode
 
-    // outputs
+  // outputs
 
   unsigned char vntTargetPressure;
-  unsigned char vntPositionRemapped;  
+  unsigned char vntPositionRemapped;
   unsigned char vntPositionDC;
   unsigned char vntMinDc;
   unsigned char vntMaxDc;
@@ -273,7 +273,7 @@ controlsStruct controls;
 struct avgStruct {
   unsigned char pos;
   unsigned char size;
-  volatile unsigned int avgData[AVG_MAX]; 
+  volatile unsigned int avgData[AVG_MAX];
 };
 
 avgStruct tpsAvg;
@@ -284,81 +284,88 @@ char buffer[100]; // general purpose buffer, mainly used for string storage when
 unsigned long lastPacketTime;
 const unsigned char mapVisualitionHelp[] PROGMEM  = "Top Left is 0,0 (press: L - toggle live mode)";
 
-unsigned char page=0;
+unsigned char page = 0;
 const char *pages[] = {
-  "About","Adaptation","Actuator Fine-tune","Edit map: boostRequest","Edit map: boostDCMin","Edit map: boostDCMax","Edit map: Aux. device PWM map","Output Tests"};
+  "About", "Adaptation", "Actuator Fine-tune", "Edit map: boostRequest", "Edit map: boostDCMin", "Edit map: boostDCMax", "Edit map: Aux. device PWM map", "Output Tests"
+};
 
 unsigned char **editorMaps;
-unsigned char *editorMaps1[]={
-  boostRequest1,boostDCMin1,boostDCMax1,auxMap1};
+unsigned char *editorMaps1[] = {
+  boostRequest1, boostDCMin1, boostDCMax1, auxMap1
+};
 
-unsigned char clearScreen[] =  { 
-  27,'[','2','J',27,'[','H'};
+unsigned char clearScreen[] =  {
+  27, '[', '2', 'J', 27, '[', 'H'
+};
 
 const unsigned char ANSIclearEol[] PROGMEM = {
-  27,'[','K',0};
+  27, '[', 'K', 0
+};
 
 const unsigned char ANSIclearEolAndLf[] PROGMEM = {
-  27,'[','K','\r','\n',0};
+  27, '[', 'K', '\r', '\n', 0
+};
 const unsigned char ANSIgoHome[] PROGMEM = {
-  27,'[','1',';','1','H',0};
+  27, '[', '1', ';', '1', 'H', 0
+};
 const unsigned char ANSIclearEos[] PROGMEM = {
-  27,'[','J',0};
+  27, '[', 'J', 0
+};
 
 void setPwmFrequency(int pin, int divisor) {
   byte mode;
-  if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
-    switch(divisor) {
-    case 1: 
-      mode = 0x01; 
-      break;
-    case 8: 
-      mode = 0x02; 
-      break;
-    case 64: 
-      mode = 0x03; 
-      break;
-    case 256: 
-      mode = 0x04; 
-      break;
-    case 1024: 
-      mode = 0x05; 
-      break;
-    default: 
-      return;
+  if (pin == 5 || pin == 6 || pin == 9 || pin == 10) {
+    switch (divisor) {
+      case 1:
+        mode = 0x01;
+        break;
+      case 8:
+        mode = 0x02;
+        break;
+      case 64:
+        mode = 0x03;
+        break;
+      case 256:
+        mode = 0x04;
+        break;
+      case 1024:
+        mode = 0x05;
+        break;
+      default:
+        return;
     }
-    if(pin == 5 || pin == 6) {
+    if (pin == 5 || pin == 6) {
       TCCR0B = TCCR0B & 0b11111000 | mode;
-    } 
+    }
     else {
       TCCR1B = TCCR1B & 0b11111000 | mode;
     }
-  } 
-  else if(pin == 3 || pin == 11) {
-    switch(divisor) {
-    case 1: 
-      mode = 0x01; 
-      break;
-    case 8: 
-      mode = 0x02; 
-      break;
-    case 32: 
-      mode = 0x03; 
-      break;
-    case 64: 
-      mode = 0x04; 
-      break;
-    case 128: 
-      mode = 0x05; 
-      break;
-    case 256: 
-      mode = 0x06; 
-      break;
-    case 1024: 
-      mode = 0x7; 
-      break;
-    default: 
-      return;
+  }
+  else if (pin == 3 || pin == 11) {
+    switch (divisor) {
+      case 1:
+        mode = 0x01;
+        break;
+      case 8:
+        mode = 0x02;
+        break;
+      case 32:
+        mode = 0x03;
+        break;
+      case 64:
+        mode = 0x04;
+        break;
+      case 128:
+        mode = 0x05;
+        break;
+      case 256:
+        mode = 0x06;
+        break;
+      case 1024:
+        mode = 0x7;
+        break;
+      default:
+        return;
     }
     // TCCR2A = 0xA3;
     TCCR2B = TCCR2B & 0b11111000 | mode;
@@ -377,27 +384,27 @@ unsigned long rpmMicros = 0;
 unsigned long teethSeconds = 0;
 
 void calcRpm() {
-  if (teethNo > rpmResolution) 
+  if (teethNo > rpmResolution)
   {
     int rpm;
 
     // detachInterrupt(0); // don't trigger increments while we're calculating
-    
+
     teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
     // teethSeconds is one second in microseconds / number of teeth per revolution - avoid overflowing by pre-dividing a second by the number of teeth
-    rpm = (teethSeconds * teethNo)/(micros() - rpmMicros);
+    rpm = (teethSeconds * teethNo) / (micros() - rpmMicros);
 
     // Set time to now, reset tooth count to zero to start incrementing again
     rpmMicros = micros();
     teethNo = 0;
 
     // attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
-    
+
     // controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
 
-    rpm_read.update(rpm);
-    controls.rpmActual = rpm_read.getValue();
+    rpm_read.update(rpm / 10);
+    controls.rpmActual = rpm_read.getValue() * 10;
 
     if (controls.rpmActual > settings.rpmMax) {
       controls.rpmActual = 0;
@@ -405,17 +412,17 @@ void calcRpm() {
   }
 }
 
-void gotoXY(char x,char y) {
+void gotoXY(char x, char y) {
   Serial.print("\e[");
-  Serial.print(y,DEC);
+  Serial.print(y, DEC);
   Serial.print(";");
-  Serial.print(x,DEC);
+  Serial.print(x, DEC);
   Serial.print("H");
 }
 
 void modeSelect() {
   // This needs to be removed, we don't have a dual mode switch and most of the rest of the code is gone
-  
+
   editorMaps = editorMaps1;
 
   auxMap = auxMap1;
@@ -431,28 +438,28 @@ void modeSelect() {
 void setup_lcd() {
   // Put all the LCD setup stuff here, we will call this from
   // the "setup" loop
- 
-  lcd.begin(LCD_BAUD_RATE);        
+
+  lcd.begin(LCD_BAUD_RATE);
 
   // set the splash screen
   lcd.write(0xFE);
   lcd.write(0x40);
-  strcpy_P(buffer, (PGM_P)&versionString);   
+  strcpy_P(buffer, (PGM_P)&versionString);
   lcd.print(buffer);
   delay(10);
-  
+
 
   // set the contrast, 200 is a good place to start, adjust as desired
   lcd.write(0xFE);
   lcd.write(0x50);
   lcd.write(200);
-  delay(10);       
+  delay(10);
 
   // set the brightness - we'll max it (255 is max brightness)
   lcd.write(0xFE);
   lcd.write(0x99);
   lcd.write(255);
-  delay(10);     
+  delay(10);
 
   // set background colour - r/g/b 0-255
   lcd.write(0xFE);
@@ -470,17 +477,17 @@ void setup_lcd() {
 
   // turn off autoscroll
   lcd.write(0xFE);
-  lcd.write(0x52); 
+  lcd.write(0x52);
 
   // clear screen
   lcd.write(0xFE);
   lcd.write(0x58);
-  delay(10);   // we suggest putting delays after each command 
+  delay(10);   // we suggest putting delays after each command
 
   // go 'home'
   lcd.write(0xFE);
   lcd.write(0x48);
-  delay(10);   // we suggest putting delays after each command 
+  delay(10);   // we suggest putting delays after each command
 }
 
 
@@ -489,15 +496,15 @@ float Ki;
 float Kd;
 
 void calcKp() {
-  Kp = (float)(settings.boostKp)/PIDControlRatio;
+  Kp = (float)(settings.boostKp) / PIDControlRatio;
 }
 
 void calcKi() {
-  Ki = (float)(settings.boostKi)/(PIDControlRatio * 500);
+  Ki = (float)(settings.boostKi) / (PIDControlRatio * 500);
 }
 
 void calcKd() {
-  Kd = (float)(settings.boostKd * 100)/PIDControlRatio; 
+  Kd = (float)(settings.boostKd * 100) / PIDControlRatio;
 }
 
 void setup() {
@@ -508,29 +515,29 @@ void setup() {
   Serial.begin(115200);
   Serial.print(F("Boot:"));
 
-  pinMode(PIN_HEARTBEAT,OUTPUT); // DEBUG led
+  pinMode(PIN_HEARTBEAT, OUTPUT); // DEBUG led
 
-  pinMode(PIN_BUTTON,INPUT); // Reset switch
+  pinMode(PIN_BUTTON, INPUT); // Reset switch
   digitalWrite(PIN_BUTTON, HIGH);  // activate pull up resistor
 
-  pinMode(PIN_RPM_TRIGGER,INPUT); // Reset switch
-  digitalWrite(PIN_RPM_TRIGGER,HIGH); // pullup for honeywell
+  pinMode(PIN_RPM_TRIGGER, INPUT); // Reset switch
+  digitalWrite(PIN_RPM_TRIGGER, HIGH); // pullup for honeywell
 
   attachInterrupt(0, rpmTrigger, RISING); // or rising!
-    
+
   setPwmFrequency(PIN_VNT_N75, 128); // was 1024
   setPwmFrequency(PIN_AUX_N75, 128); // was 1024
 
-  pinMode(PIN_VNT_N75,OUTPUT);
-  pinMode(PIN_AUX_N75,OUTPUT);
+  pinMode(PIN_VNT_N75, OUTPUT);
+  pinMode(PIN_AUX_N75, OUTPUT);
 
-  pinMode(PIN_TPS,INPUT);
-  pinMode(PIN_MAP,INPUT);
+  pinMode(PIN_TPS, INPUT);
+  pinMode(PIN_MAP, INPUT);
 
-  pinMode(PIN_TEMP2,INPUT);
+  pinMode(PIN_TEMP2, INPUT);
 
-  digitalWrite(PIN_TPS,LOW); // safety unconnected TPS
-  digitalWrite(PIN_MAP,HIGH); // safety unconnected MAP
+  digitalWrite(PIN_TPS, LOW); // safety unconnected TPS
+  digitalWrite(PIN_MAP, HIGH); // safety unconnected MAP
 
   // clear screen
   lcd.write(0xFE);
@@ -543,24 +550,24 @@ void setup() {
     lcd.print("INVALID CONF");
     loadDefaults();
     delay(2000);
-  } 
+  }
   else {
     Serial.println(F("OK"));
     lcd.print("OK.");
     delay(500);
   }
   Serial.println(F("\r\n"));
-  Serial.write(clearScreen,sizeof(clearScreen));
-  
-  tpsAvg.size=AVG_MAX;
-  mapAvg.size=AVG_MAX;
+  Serial.write(clearScreen, sizeof(clearScreen));
+
+  tpsAvg.size = AVG_MAX;
+  mapAvg.size = AVG_MAX;
 
   //initial setup of kp/ki/kd
   calcKp();
   calcKi();
   calcKd();
 
-  digitalWrite(PIN_HEARTBEAT,LOW);  
+  digitalWrite(PIN_HEARTBEAT, LOW);
 
   // set up screen
   layoutLCD();
@@ -569,7 +576,7 @@ void setup() {
 }
 
 void loadDefaults() {
-  memset(&settings,0,sizeof(settingsStruct));
+  memset(&settings, 0, sizeof(settingsStruct));
   settings.tpsMax = 1023;
   settings.mapMax = 1023;
   settings.empMax = 1023;
@@ -585,106 +592,106 @@ void loadDefaults() {
 }
 
 
-unsigned char mapValues(int raw,int mapMin,int mapMax) {
+unsigned char mapValues(int raw, int mapMin, int mapMax) {
   if (raw < mapMin)
     return 0;
   if (raw >= mapMax)
     return 0xff;
 
-  return map(raw,mapMin,mapMax,0,255);
+  return map(raw, mapMin, mapMax, 0, 255);
 }
 
-unsigned char empValues(int raw,int empMin,int empMax) {
+unsigned char empValues(int raw, int empMin, int empMax) {
   if (raw < empMin)
     return 0;
   if (raw >= empMax)
     return 0xff;
 
-  return map(raw,empMin,empMax,0,255);
+  return map(raw, empMin, empMax, 0, 255);
 }
 
-unsigned char egtValues(int raw,int egtMin,int egtMax) {
+unsigned char egtValues(int raw, int egtMin, int egtMax) {
   if (raw < egtMin)
     return 0;
   if (raw >= egtMax)
     return 0xff;
 
-  return map(raw,egtMin,egtMax,0,255);
+  return map(raw, egtMin, egtMax, 0, 255);
 }
 
-unsigned char mapValuesSqueeze(int raw,int mapMin,int mapMax) {
-  return map(raw,0,255,mapMin,mapMax);
+unsigned char mapValuesSqueeze(int raw, int mapMin, int mapMax) {
+  return map(raw, 0, 255, mapMin, mapMax);
 }
 
-unsigned char mapInterpolate(unsigned char p1,unsigned char p2, unsigned char pos) {
-  return (p1*(100-pos)+p2*pos)/100;
+unsigned char mapInterpolate(unsigned char p1, unsigned char p2, unsigned char pos) {
+  return (p1 * (100 - pos) + p2 * pos) / 100;
 }
 
-unsigned char mapLookUp(unsigned char *mapData,unsigned char x,unsigned char y) {
-  unsigned char isInterpolated = *(mapData+2);
-  unsigned char tableSizeX = *(mapData+3);
-  unsigned char tableSizeY = *(mapData+4);
+unsigned char mapLookUp(unsigned char *mapData, unsigned char x, unsigned char y) {
+  unsigned char isInterpolated = *(mapData + 2);
+  unsigned char tableSizeX = *(mapData + 3);
+  unsigned char tableSizeY = *(mapData + 4);
   unsigned char yPos;
-  *(mapData+8+tableSizeX*tableSizeY) = x;
-  *(mapData+8+tableSizeX*tableSizeY+1) = y;
+  *(mapData + 8 + tableSizeX * tableSizeY) = x;
+  *(mapData + 8 + tableSizeX * tableSizeY + 1) = y;
 
   if (tableSizeY) {
-    yPos = y / (256/(tableSizeY-1));
-  } 
+    yPos = y / (256 / (tableSizeY - 1));
+  }
   else {
     yPos = 0;
   }
-  unsigned char xPos = (x / (256/(tableSizeX-1)));
+  unsigned char xPos = (x / (256 / (tableSizeX - 1)));
   int ofs = 8; // skip headers
 
-  unsigned char p1 = *(mapData+ofs+(yPos*tableSizeX)+xPos);
-  unsigned char p2 = *(mapData+ofs+(yPos*tableSizeX)+(((xPos+1)>=tableSizeX)?xPos:xPos+1));
+  unsigned char p1 = *(mapData + ofs + (yPos * tableSizeX) + xPos);
+  unsigned char p2 = *(mapData + ofs + (yPos * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
   ;
-  unsigned char p3 = *(mapData+ofs+((((yPos+1)>=tableSizeX)?yPos:yPos+1)*tableSizeX)+xPos);
-  unsigned char p4 = *(mapData+ofs+((((yPos+1)>=tableSizeX)?yPos:yPos+1)*tableSizeX)+(((xPos+1)>=tableSizeX)?xPos:xPos+1));
+  unsigned char p3 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + xPos);
+  unsigned char p4 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
 
   unsigned char ret;
   if (isInterpolated == 'D') {
-    int amountX = (x % (256/(tableSizeX-1)))*(10000/(256/(tableSizeX-1)));
+    int amountX = (x % (256 / (tableSizeX - 1))) * (10000 / (256 / (tableSizeX - 1)));
     if (tableSizeY) {
       // 2D
-      int amountY = (y % (256/(tableSizeY-1)))*(10000/(256/(tableSizeY-1)));
-      char y1 = mapInterpolate(p1,p2,amountX /100);
-      char y2 = mapInterpolate(p3,p4,amountX /100);
-      ret = mapInterpolate(y1,y2,amountY /100);
-    } 
+      int amountY = (y % (256 / (tableSizeY - 1))) * (10000 / (256 / (tableSizeY - 1)));
+      char y1 = mapInterpolate(p1, p2, amountX / 100);
+      char y2 = mapInterpolate(p3, p4, amountX / 100);
+      ret = mapInterpolate(y1, y2, amountY / 100);
+    }
     else {
       // 1D
-      ret = mapInterpolate(p1,p2,amountX /100);
+      ret = mapInterpolate(p1, p2, amountX / 100);
     }
-  } 
+  }
   else {
     ret = p1;
   }
-  *(mapData+8+tableSizeX*tableSizeY+2) = ret;
+  *(mapData + 8 + tableSizeX * tableSizeY + 2) = ret;
   return ret;
 }
 
 
 char mapDebugCharValue(unsigned char c) {
-  if (c<5) {
+  if (c < 5) {
     return ' ';
-  } 
-  else if (c<20) {
+  }
+  else if (c < 20) {
     return '.';
-  } 
-  else if (c<60) {
+  }
+  else if (c < 60) {
     return ':';
-  } 
-  else if (c<128) {
+  }
+  else if (c < 128) {
     return '!';
-  } 
-  else if (c<180) {
+  }
+  else if (c < 180) {
     return 'o';
-  } 
-  else if (c<220) {
+  }
+  else if (c < 220) {
     return 'O';
-  } 
+  }
   else  {
     return '@';
   }
@@ -693,18 +700,18 @@ char mapDebugCharValue(unsigned char c) {
 
 // Fetches and print string from flash to preserve some ram!
 void printFromFlash(const unsigned char *str) {
-  strcpy_P(buffer, (PGM_P)str);   
+  strcpy_P(buffer, (PGM_P)str);
   Serial.print(buffer);
 }
 
-int EEPROMwriteData(int offset, byte *ptr,int size) {
+int EEPROMwriteData(int offset, byte *ptr, int size) {
   int i;
   for (i = 0; i < size; i++)
     EEPROM.write(offset++, *(ptr++));
   return i;
 }
 
-int EEPROMreadData(int offset, byte *ptr,int size) {
+int EEPROMreadData(int offset, byte *ptr, int size) {
   int i;
   for (i = 0; i < size; i++)
     *(ptr++) = EEPROM.read(offset++);
@@ -712,29 +719,29 @@ int EEPROMreadData(int offset, byte *ptr,int size) {
 }
 
 void saveToEEPROM() {
-  int ofs=0;
+  int ofs = 0;
   // write magic header
-  strcpy_P(buffer, (PGM_P)&versionString);   
-  ofs += EEPROMwriteData(0,(byte*)&buffer,strlen(buffer));
+  strcpy_P(buffer, (PGM_P)&versionString);
+  ofs += EEPROMwriteData(0, (byte*)&buffer, strlen(buffer));
   // write control struct
-  ofs += EEPROMwriteData(ofs,(byte*)&settings,sizeof(settingsStruct));
+  ofs += EEPROMwriteData(ofs, (byte*)&settings, sizeof(settingsStruct));
 
-  ofs += EEPROMwriteData(ofs,(byte*)&auxMap1,sizeof(auxMap1));    
-  ofs += EEPROMwriteData(ofs,(byte*)&boostRequest1,sizeof(boostRequest1));
-  ofs += EEPROMwriteData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
-  ofs += EEPROMwriteData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
+  ofs += EEPROMwriteData(ofs, (byte*)&auxMap1, sizeof(auxMap1));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostRequest1, sizeof(boostRequest1));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMin1, sizeof(boostDCMin1));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMax1, sizeof(boostDCMax1));
 
   printFromFlash(ANSIclearEolAndLf);
-  Serial.print(ofs,DEC);
+  Serial.print(ofs, DEC);
   Serial.print(F("SAVED "));
   Serial.print(ofs);
   Serial.print(F(" BYTES."));
 
-  delay(1000); 
+  delay(1000);
 }
 
 bool loadFromEEPROM(bool force) {
-  int ofs=0;
+  int ofs = 0;
   // if reset pin is active, no not load anything from eeprom
   if (digitalRead(PIN_BUTTON) == 0) {
     Serial.print(F("PIN_BUTTON active.."));
@@ -743,84 +750,84 @@ bool loadFromEEPROM(bool force) {
   }
   // Check magic header to prevent data corruption of blank board or wrong version save file
   if (!force) {
-    strcpy_P(buffer, (PGM_P)&versionString);   
-    for (ofs=0;ofs<strlen(buffer);ofs++) {
+    strcpy_P(buffer, (PGM_P)&versionString);
+    for (ofs = 0; ofs < strlen(buffer); ofs++) {
       if (EEPROM.read(ofs) != buffer[ofs])
         return false;
     }
   }
   ofs = strlen(buffer);
-  ofs += EEPROMreadData(ofs,(byte*)&settings,sizeof(settingsStruct));
+  ofs += EEPROMreadData(ofs, (byte*)&settings, sizeof(settingsStruct));
 
-  ofs += EEPROMreadData(ofs,(byte*)&auxMap1,sizeof(auxMap1));
-  ofs += EEPROMreadData(ofs,(byte*)&boostRequest1,sizeof(boostRequest1));   
-  ofs += EEPROMreadData(ofs,(byte*)&boostDCMin1,sizeof(boostDCMin1));
-  ofs += EEPROMreadData(ofs,(byte*)&boostDCMax1,sizeof(boostDCMax1));
+  ofs += EEPROMreadData(ofs, (byte*)&auxMap1, sizeof(auxMap1));
+  ofs += EEPROMreadData(ofs, (byte*)&boostRequest1, sizeof(boostRequest1));
+  ofs += EEPROMreadData(ofs, (byte*)&boostDCMin1, sizeof(boostDCMin1));
+  ofs += EEPROMreadData(ofs, (byte*)&boostDCMax1, sizeof(boostDCMax1));
 
   return true;
 }
 
 
 int toKpaMAP(int raw) {
-  return raw*MAP_SCALING_KPA;
+  return raw * MAP_SCALING_KPA;
 }
 
 int toKpaEMP(int raw) {
-  return raw*EMP_SCALING_KPA;
+  return raw * EMP_SCALING_KPA;
 }
 
 int toVoltage(int raw) {
   // mVolt
-  return int(raw*19.608);
+  return int(raw * 19.608);
 }
 
 int toRpm(int raw) {
-  return round(((float)settings.rpmMax/255)*(float)raw);
+  return round(((float)settings.rpmMax / 255) * (float)raw);
 }
 
 int toEgt(int raw) {
-  return round(((float)settings.egtMax/255)*(float)raw);
+  return round(((float)settings.egtMax / 255) * (float)raw);
 }
 
 int toTps(int raw) {
   // percent
-  return int(raw/2.55);
+  return int(raw / 2.55);
 }
 
-void printIntWithPadding(int val,unsigned char width,char padChar) {
+void printIntWithPadding(int val, unsigned char width, char padChar) {
   // print enough leading zeroes!
-  memset(buffer,padChar,30);
+  memset(buffer, padChar, 30);
   // append string presentation of number to end
-  itoa(val,buffer+30,10);
+  itoa(val, buffer + 30, 10);
   // print string with given width
-  Serial.print(buffer+30+strlen(buffer+30)-width);
+  Serial.print(buffer + 30 + strlen(buffer + 30) - width);
 }
 
-void printStringWithPadding(const unsigned char *str,unsigned char width,char padChar) {
+void printStringWithPadding(const unsigned char *str, unsigned char width, char padChar) {
   // print enough leading zeroes!
-  memset(buffer,padChar,30);
+  memset(buffer, padChar, 30);
   // append string presentation of number to end
-  strcpy_P(buffer+30, (PGM_P)str);   
+  strcpy_P(buffer + 30, (PGM_P)str);
 
   // print string with given width
-  Serial.print(buffer+30+strlen(buffer+30)-width);
+  Serial.print(buffer + 30 + strlen(buffer + 30) - width);
 }
 
 void printPads(unsigned char n, char padChar) {
-  memset(buffer,padChar,n);
+  memset(buffer, padChar, n);
   buffer[n] = 0;
   Serial.print(buffer);
 }
 
 // User interface functions
 void pageHeader() {
-  //Serial.write(clearScreen,sizeof(clearScreen));    
+  //Serial.write(clearScreen,sizeof(clearScreen));
   printFromFlash(ANSIgoHome);
-  printFromFlash((const unsigned char*)versionString);  
+  printFromFlash((const unsigned char*)versionString);
   Serial.print(F(" Mode:"));
-  Serial.print(controls.mode,DEC);
-  Serial.print(F(" ")); 
-  printFromFlash(statusString1);   
+  Serial.print(controls.mode, DEC);
+  Serial.print(F(" "));
+  printFromFlash(statusString1);
   Serial.print(pages[page]);
   printFromFlash(ANSIclearEolAndLf);
   printFromFlash(ANSIclearEolAndLf);
@@ -837,32 +844,32 @@ void pageAbout(char key) {
   if (key) {
     // update only if key pressed
     pageHeader();
-    printFromFlash(aboutString1);   
+    printFromFlash(aboutString1);
     printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(aboutString2);   
+    printFromFlash(aboutString2);
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
-    printFromFlash(aboutString3);   
-    printFromFlash(ANSIclearEolAndLf);	
-    for (char i=0;i<8;i++) {
-      printPads(11,' ');
+    printFromFlash(aboutString3);
+    printFromFlash(ANSIclearEolAndLf);
+    for (char i = 0; i < 8; i++) {
+      printPads(11, ' ');
       Serial.print(F("<"));
-      Serial.print(i,DEC);
+      Serial.print(i, DEC);
       Serial.print(F("> "));
-      Serial.print(pages[i]);			
+      Serial.print(pages[i]);
       printFromFlash(ANSIclearEolAndLf);
     }
     printFromFlash(ANSIclearEolAndLf);
 
-    printFromFlash(aboutString4);   
+    printFromFlash(aboutString4);
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
 
     printFromFlash(ANSIclearEos);
   }
-} 
+}
 
 // TPS input: 200 Corrected: 0 (low:200, high:788);
 const unsigned char statusRPM[] PROGMEM  = "RPM actual:";
@@ -912,85 +919,85 @@ void pageStatusAndAdaption(char key) {
     x = 10;
 
   switch (key) {
-  case 'l':
-  case 'L': 
-    isLive=!isLive; 
-    break;
-  case 'q': 
-    if (settings.tpsMin-x>0) settings.tpsMin -= x; 
-    break;
-  case 'Q': 
-    if (settings.tpsMin+x<settings.tpsMax) settings.tpsMin += x; 
-    break;
-  case 'w': 
-    if (settings.tpsMax-x>settings.tpsMin) settings.tpsMax -= x; 
-    break;
-  case 'W': 
-    if (settings.tpsMax+x<1024) settings.tpsMax += x; 
-    break;
-  case 'e':
-    if (settings.egtMax+x<EGT_MAX_READ) settings.egtMax += x;
-    break;
-  case 'E':
-    if (settings.egtMax-x>0) settings.egtMax -= x;
-    break;
-  case 'a': 
-    if (settings.mapMin-x>0) settings.mapMin -= x; 
-    break;
-  case 'A': 
-    if (settings.mapMin+x<settings.mapMax) settings.mapMin += x; 
-    break;
-  case 's': 
-    if (settings.mapMax-x>settings.mapMin) settings.mapMax -= x; 
-    break;
-  case 'S': 
-    if (settings.mapMax+x<1024) settings.mapMax += x; 
-    break;
-  case 'f': 
-    if (settings.rpmTeethsPerRotation>1) settings.rpmTeethsPerRotation -= 1; 
-    teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
-    break;				
-  case 'F': 
-    if (settings.rpmTeethsPerRotation<99) settings.rpmTeethsPerRotation += 1; 
-    teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
-    break;				
-  case 'd': 
-    if (settings.rpmMax-100>1000) settings.rpmMax -= 100; 
-    break;		
-  case 'D': 
-    if (settings.rpmMax+100<9999) settings.rpmMax += 100; 
-    break;		
+    case 'l':
+    case 'L':
+      isLive = !isLive;
+      break;
+    case 'q':
+      if (settings.tpsMin - x > 0) settings.tpsMin -= x;
+      break;
+    case 'Q':
+      if (settings.tpsMin + x < settings.tpsMax) settings.tpsMin += x;
+      break;
+    case 'w':
+      if (settings.tpsMax - x > settings.tpsMin) settings.tpsMax -= x;
+      break;
+    case 'W':
+      if (settings.tpsMax + x < 1024) settings.tpsMax += x;
+      break;
+    case 'e':
+      if (settings.egtMax + x < EGT_MAX_READ) settings.egtMax += x;
+      break;
+    case 'E':
+      if (settings.egtMax - x > 0) settings.egtMax -= x;
+      break;
+    case 'a':
+      if (settings.mapMin - x > 0) settings.mapMin -= x;
+      break;
+    case 'A':
+      if (settings.mapMin + x < settings.mapMax) settings.mapMin += x;
+      break;
+    case 's':
+      if (settings.mapMax - x > settings.mapMin) settings.mapMax -= x;
+      break;
+    case 'S':
+      if (settings.mapMax + x < 1024) settings.mapMax += x;
+      break;
+    case 'f':
+      if (settings.rpmTeethsPerRotation > 1) settings.rpmTeethsPerRotation -= 1;
+      teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
+      break;
+    case 'F':
+      if (settings.rpmTeethsPerRotation < 99) settings.rpmTeethsPerRotation += 1;
+      teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
+      break;
+    case 'd':
+      if (settings.rpmMax - 100 > 1000) settings.rpmMax -= 100;
+      break;
+    case 'D':
+      if (settings.rpmMax + 100 < 9999) settings.rpmMax += 100;
+      break;
 
-  case 'c':
-  case 'C': 
-    settings.options = settings.options ^ OPTIONS_VANESOPENIDLE; 
-    break;		
-  case 'm':
-  case 'M': 			
-  case 'j':
-  case 'J': 
-    settings.options = settings.options ^ OPTIONS_VNTOUTPUTINVERTED; 
-    break;				
-  case 'y': 
-    saveToEEPROM(); 
-    break;
-  case 'p': 
-    loadFromEEPROM(false); 
-    break;
-  case 'R': 
-    loadDefaults(); 
-    break;		
+    case 'c':
+    case 'C':
+      settings.options = settings.options ^ OPTIONS_VANESOPENIDLE;
+      break;
+    case 'm':
+    case 'M':
+    case 'j':
+    case 'J':
+      settings.options = settings.options ^ OPTIONS_VNTOUTPUTINVERTED;
+      break;
+    case 'y':
+      saveToEEPROM();
+      break;
+    case 'p':
+      loadFromEEPROM(false);
+      break;
+    case 'R':
+      loadDefaults();
+      break;
   }
   if (key) {
     lastPacketTime = millis();
   }
-  oldKey = key;	
+  oldKey = key;
 
   if (!key && !isLive)
     return;
 
   // update always if live
-  pageHeader(); 
+  pageHeader();
 
   printFromFlash(statusHeader);
   printFromFlash(ANSIclearEolAndLf);
@@ -999,56 +1006,56 @@ void pageStatusAndAdaption(char key) {
   printFromFlash(statusTableHeader);
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(statusRowTPS,7,' ');
-  printPads(1,' ');
-  printIntWithPadding(controls.tpsInput,4,'0'); // RAW
-  printPads(6,' ');
-  printIntWithPadding(controls.tpsCorrected,3,'0'); // Corr.
-  printPads(7,' ');	
-  printIntWithPadding(settings.tpsMin,4,'0'); // Map low
-  printPads(1,' ');	
+  printStringWithPadding(statusRowTPS, 7, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.tpsInput, 4, '0'); // RAW
+  printPads(6, ' ');
+  printIntWithPadding(controls.tpsCorrected, 3, '0'); // Corr.
+  printPads(7, ' ');
+  printIntWithPadding(settings.tpsMin, 4, '0'); // Map low
+  printPads(1, ' ');
   Serial.print(F("Q"));
-  printPads(4,' ');	
-  printIntWithPadding(settings.tpsMax,4,'0'); // Map high
+  printPads(4, ' ');
+  printIntWithPadding(settings.tpsMax, 4, '0'); // Map high
   Serial.print(F(" W"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(statusRowMAP,7,' ');
-  printPads(1,' ');
-  printIntWithPadding(controls.mapInput,4,'0'); // RAW
-  printPads(6,' ');
-  printIntWithPadding(controls.mapCorrected,3,'0'); // Corr.
-  printPads(7,' ');	
-  printIntWithPadding(settings.mapMin,4,'0'); // Map low
-  printPads(1,' ');	
+  printStringWithPadding(statusRowMAP, 7, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.mapInput, 4, '0'); // RAW
+  printPads(6, ' ');
+  printIntWithPadding(controls.mapCorrected, 3, '0'); // Corr.
+  printPads(7, ' ');
+  printIntWithPadding(settings.mapMin, 4, '0'); // Map low
+  printPads(1, ' ');
   Serial.print(F("A"));
-  printPads(4,' ');	
-  printIntWithPadding(settings.mapMax,4,'0'); // Map high
+  printPads(4, ' ');
+  printIntWithPadding(settings.mapMax, 4, '0'); // Map high
   Serial.print(F(" S"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(statusRowRPM,7,' ');
-  printPads(1,' ');
-  printIntWithPadding(controls.rpmActual,4,'0'); // RAW
-  printPads(6,' ');
-  printIntWithPadding(controls.rpmCorrected,3,'0'); // Corrected
-  printPads(17,' ');
-  printIntWithPadding(settings.rpmMax,4,'0'); 
+  printStringWithPadding(statusRowRPM, 7, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.rpmActual, 4, '0'); // RAW
+  printPads(6, ' ');
+  printIntWithPadding(controls.rpmCorrected, 3, '0'); // Corrected
+  printPads(17, ' ');
+  printIntWithPadding(settings.rpmMax, 4, '0');
   Serial.print(F(" D"));
-  printPads(4,' ');	
+  printPads(4, ' ');
   Serial.print(F("No.teeths="));
-  printIntWithPadding(settings.rpmTeethsPerRotation,2,'0'); 
+  printIntWithPadding(settings.rpmTeethsPerRotation, 2, '0');
   Serial.print(F(" F"));
 
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(statusTemp1,7,' ');
-  printPads(1,' ');  
-  printIntWithPadding(controls.temp1,4,' ');
+  printStringWithPadding(statusTemp1, 7, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.temp1, 4, ' ');
   printFromFlash(statusC);
-  printPads(3,' ');
+  printPads(3, ' ');
   Serial.print(F("Max EGT="));
-  printIntWithPadding(settings.egtMax,3,' ');
+  printIntWithPadding(settings.egtMax, 3, ' ');
   Serial.print(F(" E"));
 
   printFromFlash(ANSIclearEolAndLf);
@@ -1056,11 +1063,11 @@ void pageStatusAndAdaption(char key) {
   printFromFlash(ANSIclearEolAndLf);
   printFromFlash(ANSIclearEolAndLf);
 
-  printPads(8,' '); 
+  printPads(8, ' ');
 
   if (settings.options & OPTIONS_VANESOPENIDLE) {
     printFromFlash(statusSelected);
-  } 
+  }
   else {
     printFromFlash(statusUnSelected);
   }
@@ -1068,10 +1075,10 @@ void pageStatusAndAdaption(char key) {
 
   printFromFlash(ANSIclearEolAndLf);
 
-  printPads(8,' ');
+  printPads(8, ' ');
   if (settings.options & OPTIONS_VNTOUTPUTINVERTED) {
     printFromFlash(statusSelected);
-  } 
+  }
   else {
     printFromFlash(statusUnSelected);
   }
@@ -1098,47 +1105,47 @@ const unsigned char statusOutput4[] PROGMEM = "<E> Sweep output VNT output betwe
 void pageOutputTests(char key) {
 
   if (key) {
-    switch(key) {
-    case 'q':
-    case 'Q':
-      controls.vntPositionRemapped = 0;
-      updateOutputValues(true);
-      updateLCD();
-      delay(2000);				
-      break;
-    case 'w':
-    case 'W':
-      controls.vntPositionRemapped = 255;
-      updateOutputValues(true);				
-      updateLCD();
-      delay(2000);							
-      break;
-    case 'e':
-    case 'E':
-      for (controls.vntPositionRemapped = 0;
-                       controls.vntPositionRemapped<255;
-                       controls.vntPositionRemapped++) {
-          updateOutputValues(true);
+    switch (key) {
+      case 'q':
+      case 'Q':
+        controls.vntPositionRemapped = 0;
+        updateOutputValues(true);
         updateLCD();
-        delay(20);
-      }
-      for (controls.vntPositionRemapped = 255;
-                       controls.vntPositionRemapped>0;
-                       controls.vntPositionRemapped--) {
-          updateOutputValues(true);
+        delay(2000);
+        break;
+      case 'w':
+      case 'W':
+        controls.vntPositionRemapped = 255;
+        updateOutputValues(true);
         updateLCD();
-        delay(20);
-      }				
-      break;
+        delay(2000);
+        break;
+      case 'e':
+      case 'E':
+        for (controls.vntPositionRemapped = 0;
+             controls.vntPositionRemapped < 255;
+             controls.vntPositionRemapped++) {
+          updateOutputValues(true);
+          updateLCD();
+          delay(20);
+        }
+        for (controls.vntPositionRemapped = 255;
+             controls.vntPositionRemapped > 0;
+             controls.vntPositionRemapped--) {
+          updateOutputValues(true);
+          updateLCD();
+          delay(20);
+        }
+        break;
     }
     pageHeader();
 
-    printFromFlash(statusOutput1); 		
+    printFromFlash(statusOutput1);
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(statusOutput2); 
+    printFromFlash(statusOutput2);
     printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(statusOutput4); 
+    printFromFlash(statusOutput4);
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEos);
   }
@@ -1156,13 +1163,13 @@ void pageExport(char key) {
     printFromFlash(exportConf);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AA"));
-    for (int i=0;i<sizeof(settingsStruct);i++) {
-      if (i%32 == 31) 
+    for (int i = 0; i < sizeof(settingsStruct); i++) {
+      if (i % 32 == 31)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char)*(i+((unsigned char*)&settings));
-      if (v<16)
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&settings));
+      if (v < 16)
         Serial.print(F("0"));
-      Serial.print(v,HEX);
+      Serial.print(v, HEX);
     }
     Serial.print(F("!"));
     printFromFlash(ANSIclearEolAndLf);
@@ -1171,13 +1178,13 @@ void pageExport(char key) {
     printFromFlash(exportVntMap);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AA"));
-    for (int i=0;i<sizeof(boostRequest1);i++) {
-      if (i && i%16 == 0) 
+    for (int i = 0; i < sizeof(boostRequest1); i++) {
+      if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostRequest1));
-      if (v<16)
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostRequest1));
+      if (v < 16)
         Serial.print(F("0"));
-      Serial.print(v,HEX);
+      Serial.print(v, HEX);
     }
     Serial.print("!");
     printFromFlash(ANSIclearEolAndLf);
@@ -1186,13 +1193,13 @@ void pageExport(char key) {
     printFromFlash(exportBoostDCMax);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AB"));
-    for (int i=0;i<sizeof(boostDCMax1);i++) {
-      if (i && i%16 == 0) 
+    for (int i = 0; i < sizeof(boostDCMax1); i++) {
+      if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMax1));
-      if (v<16)
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMax1));
+      if (v < 16)
         Serial.print(F("0"));
-      Serial.print(v,HEX);
+      Serial.print(v, HEX);
     }
     Serial.print(F("!"));
     printFromFlash(ANSIclearEolAndLf);
@@ -1201,34 +1208,34 @@ void pageExport(char key) {
     printFromFlash(exportBoostDCMin);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AC"));
-    for (int i=0;i<sizeof(boostDCMin1);i++) {
-      if (i && i%16 == 0) 
+    for (int i = 0; i < sizeof(boostDCMin1); i++) {
+      if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char)*(i+((unsigned char*)&boostDCMin1));
-      if (v<16)
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMin1));
+      if (v < 16)
         Serial.print(F("0"));
-      Serial.print(v,HEX);
+      Serial.print(v, HEX);
     }
     Serial.print("!");
     printFromFlash(ANSIclearEolAndLf);
-    printFromFlash(ANSIclearEolAndLf);       
+    printFromFlash(ANSIclearEolAndLf);
 
     printFromFlash(exportLdaMap);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AD"));
-    for (int i=0;i<sizeof(auxMap1);i++) {
-      if (i && i%16 == 0) 
+    for (int i = 0; i < sizeof(auxMap1); i++) {
+      if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char)*(i+((unsigned char*)&auxMap1));
-      if (v<16)
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&auxMap1));
+      if (v < 16)
         Serial.print(F("0"));
-      Serial.print(v,HEX);
+      Serial.print(v, HEX);
     }
     Serial.print(F("!"));
 
     printFromFlash(ANSIclearEolAndLf);
 
-    printFromFlash(ANSIclearEos);	
+    printFromFlash(ANSIclearEos);
   }
 }
 
@@ -1237,69 +1244,69 @@ unsigned int execTimeAct = 0;
 unsigned int execTimeLcd = 0;
 
 void pageDataLogger(char key) {
-  Serial.print(toKpaMAP(controls.mapCorrected),DEC);
+  Serial.print(toKpaMAP(controls.mapCorrected), DEC);
   Serial.print(F(","));
-  Serial.print(toKpaMAP(controls.vntTargetPressure),DEC);
+  Serial.print(toKpaMAP(controls.vntTargetPressure), DEC);
   Serial.print(F(","));
-  Serial.print(controls.vntPositionRemapped,DEC);
+  Serial.print(controls.vntPositionRemapped, DEC);
   Serial.print(F(","));
-  Serial.print(controls.tpsCorrected,DEC);
+  Serial.print(controls.tpsCorrected, DEC);
   Serial.print(F(","));
-  Serial.print(controls.rpmActual,DEC);
+  Serial.print(controls.rpmActual, DEC);
   Serial.print(F(","));
-  Serial.print(controls.temp1,DEC);
+  Serial.print(controls.temp1, DEC);
   Serial.print(F(","));
-  Serial.print(controls.boostCalculatedP,DEC);
+  Serial.print(controls.boostCalculatedP, DEC);
   Serial.print(F(","));
-  Serial.print(controls.boostCalculatedI,DEC);
+  Serial.print(controls.boostCalculatedI, DEC);
   Serial.print(F(","));
-  Serial.print(controls.boostCalculatedD,DEC);
+  Serial.print(controls.boostCalculatedD, DEC);
   Serial.print(F(","));
-  Serial.print(controls.pidOutput,DEC);
+  Serial.print(controls.pidOutput, DEC);
   Serial.print(F(","));
-  Serial.print(controls.mode,DEC);
+  Serial.print(controls.mode, DEC);
   Serial.print(F(","));
-  Serial.print(controls.auxOutput,DEC);
+  Serial.print(controls.auxOutput, DEC);
   Serial.print(F(","));
-  Serial.print(execTimeRead,DEC);
+  Serial.print(execTimeRead, DEC);
   Serial.print(F(","));
-  Serial.print(execTimeAct,DEC);
+  Serial.print(execTimeAct, DEC);
   Serial.print(F(","));
-  Serial.print(execTimeLcd,DEC);
+  Serial.print(execTimeLcd, DEC);
   Serial.print(F(","));
-  Serial.print(millis()/10,DEC); 
+  Serial.print(millis() / 10, DEC);
   printFromFlash(ANSIclearEolAndLf);
 }
 
-void printMapAxis(unsigned char axisType,unsigned char idx,bool verbose) {
+void printMapAxis(unsigned char axisType, unsigned char idx, bool verbose) {
   switch (axisType) {
-  case MAP_AXIS_RPM:
-    Serial.print(toRpm(idx),DEC);
-    if (verbose) Serial.print(F(" RPM"));
-    break;
-  case MAP_AXIS_TPS:
-    Serial.print(toTps(idx),DEC);
-    if (verbose) Serial.print(F("% TPS"));
-    break;
-  case MAP_AXIS_KPA:
-    Serial.print(toKpaMAP(idx),DEC);
-    if (verbose) Serial.print(F(" kPa"));
-    break;
-  case MAP_AXIS_VOLTAGE:
-    Serial.print(toVoltage(idx),DEC);
-    if (verbose) Serial.print(F(" mV"));
-    break;
-  case MAP_AXIS_CELSIUS:
-    Serial.print(idx-64,DEC);
-    if (verbose) Serial.print(F(" °C"));
-    break;
-  case MAP_AXIS_EGT:
-    Serial.print(toEgt(idx),DEC);
-    if (verbose) Serial.print(F(" °C"));
-    break;
-  default:
-    Serial.print(idx,DEC);
-    if (verbose) Serial.print(F(" Raw"));
+    case MAP_AXIS_RPM:
+      Serial.print(toRpm(idx), DEC);
+      if (verbose) Serial.print(F(" RPM"));
+      break;
+    case MAP_AXIS_TPS:
+      Serial.print(toTps(idx), DEC);
+      if (verbose) Serial.print(F("% TPS"));
+      break;
+    case MAP_AXIS_KPA:
+      Serial.print(toKpaMAP(idx), DEC);
+      if (verbose) Serial.print(F(" kPa"));
+      break;
+    case MAP_AXIS_VOLTAGE:
+      Serial.print(toVoltage(idx), DEC);
+      if (verbose) Serial.print(F(" mV"));
+      break;
+    case MAP_AXIS_CELSIUS:
+      Serial.print(idx - 64, DEC);
+      if (verbose) Serial.print(F(" °C"));
+      break;
+    case MAP_AXIS_EGT:
+      Serial.print(toEgt(idx), DEC);
+      if (verbose) Serial.print(F(" °C"));
+      break;
+    default:
+      Serial.print(idx, DEC);
+      if (verbose) Serial.print(F(" Raw"));
   }
 }
 struct mapEditorDataStruct {
@@ -1309,23 +1316,23 @@ struct mapEditorDataStruct {
   unsigned char lastY;
   char currentMap;
   unsigned char clipboard;
-} 
+}
 mapEditorData;
 
 
 const unsigned char mapCurrentOutput[] PROGMEM = "Current output:";
 const unsigned char mapEditorHelp[] PROGMEM = "Press: cursor keys to move, - / + dec/inc, c/v copy/paste cell, y save";
 
-void pageMapEditor(unsigned char mapIdx,int key,boolean showCurrent=false) {    
+void pageMapEditor(unsigned char mapIdx, int key, boolean showCurrent = false) {
   unsigned char *mapData = editorMaps[mapIdx];
-  unsigned char tableSizeX = *(mapData+3);
-  unsigned char tableSizeY = *(mapData+4);
-  unsigned char axisTypeX = *(mapData+5);
-  unsigned char axisTypeY = *(mapData+6);
-  unsigned char axisTypeResult = *(mapData+7);
-  unsigned char lastXpos = *(mapData+8+tableSizeX*tableSizeY);
-  unsigned char lastYpos = *(mapData+8+tableSizeX*tableSizeY+1);
-  unsigned char lastValue = *(mapData+8+tableSizeX*tableSizeY+2);
+  unsigned char tableSizeX = *(mapData + 3);
+  unsigned char tableSizeY = *(mapData + 4);
+  unsigned char axisTypeX = *(mapData + 5);
+  unsigned char axisTypeY = *(mapData + 6);
+  unsigned char axisTypeResult = *(mapData + 7);
+  unsigned char lastXpos = *(mapData + 8 + tableSizeX * tableSizeY);
+  unsigned char lastYpos = *(mapData + 8 + tableSizeX * tableSizeY + 1);
+  unsigned char lastValue = *(mapData + 8 + tableSizeX * tableSizeY + 2);
 
   const char xPad = 5;
   const char xSpace = 7;
@@ -1333,146 +1340,146 @@ void pageMapEditor(unsigned char mapIdx,int key,boolean showCurrent=false) {
   const char ySpace = 2;
 
   switch (key) {
-  case -2:
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace+1,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    printPads(xSpace-2,' ');
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace+1,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    printMapAxis(axisTypeResult,*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX),0);
+    case -2:
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace + 1, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      printPads(xSpace - 2, ' ');
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace + 1, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      printMapAxis(axisTypeResult, *(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX), 0);
 
-    return;
-    break;
-  case -1:
-    // erase cursor
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    Serial.print(F(" "));
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace+xSpace-1,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    Serial.print(F(" "));
-    return;
-    break;
-  case 'c':
-    mapEditorData.clipboard = *(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX);
-    return;
-    break;
-  case 'v':
-    (*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX)) = mapEditorData.clipboard;
-    pageMapEditor(mapIdx,-2);
-    return;
-    break;
-  case 'h':
-    pageMapEditor(mapIdx,-1);
-    if (mapEditorData.cursorX>0)
-      mapEditorData.cursorX--;
-    pageMapEditor(mapIdx,0);
-    return;
-    break;
-  case 'l':
-    pageMapEditor(mapIdx,-1);
-    if (mapEditorData.cursorX<tableSizeX-1)
-      mapEditorData.cursorX++;
-    pageMapEditor(mapIdx,0);
-    return;
-    break;
-  case 'k':
-    pageMapEditor(mapIdx,-1);
-    if (mapEditorData.cursorY>0)
-      mapEditorData.cursorY--;
-    pageMapEditor(mapIdx,0);
-    return;
-    break;
-  case 'j':
-    pageMapEditor(mapIdx,-1);
-    if (mapEditorData.cursorY<tableSizeY-1)
-      mapEditorData.cursorY++;
-    pageMapEditor(mapIdx,0);
-    return;
-    break;
-  case '+':
-    if (*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX)<0xff)
-      (*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX))++;
-    pageMapEditor(mapIdx,-2);
-    return;
-    break;
-  case '-':
-    if (*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX)>0)
-      (*(mapData+8+mapEditorData.cursorX+mapEditorData.cursorY*tableSizeX))--;
-    pageMapEditor(mapIdx,-2);
-    return;
-    break;
-  case 'y':
-    saveToEEPROM();
-  case 0:
-    if (showCurrent) {
-      // Current interpreted value
-      gotoXY(xPad+xSpace,yPad+tableSizeY*ySpace+2);
-      printFromFlash(mapCurrentOutput);
-      printMapAxis(axisTypeResult,lastValue,1);
-      printFromFlash(ANSIclearEolAndLf);
-    }
+      return;
+      break;
+    case -1:
+      // erase cursor
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      Serial.print(F(" "));
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace + xSpace - 1, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      Serial.print(F(" "));
+      return;
+      break;
+    case 'c':
+      mapEditorData.clipboard = *(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX);
+      return;
+      break;
+    case 'v':
+      (*(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX)) = mapEditorData.clipboard;
+      pageMapEditor(mapIdx, -2);
+      return;
+      break;
+    case 'h':
+      pageMapEditor(mapIdx, -1);
+      if (mapEditorData.cursorX > 0)
+        mapEditorData.cursorX--;
+      pageMapEditor(mapIdx, 0);
+      return;
+      break;
+    case 'l':
+      pageMapEditor(mapIdx, -1);
+      if (mapEditorData.cursorX < tableSizeX - 1)
+        mapEditorData.cursorX++;
+      pageMapEditor(mapIdx, 0);
+      return;
+      break;
+    case 'k':
+      pageMapEditor(mapIdx, -1);
+      if (mapEditorData.cursorY > 0)
+        mapEditorData.cursorY--;
+      pageMapEditor(mapIdx, 0);
+      return;
+      break;
+    case 'j':
+      pageMapEditor(mapIdx, -1);
+      if (mapEditorData.cursorY < tableSizeY - 1)
+        mapEditorData.cursorY++;
+      pageMapEditor(mapIdx, 0);
+      return;
+      break;
+    case '+':
+      if (*(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX) < 0xff)
+        (*(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX))++;
+      pageMapEditor(mapIdx, -2);
+      return;
+      break;
+    case '-':
+      if (*(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX) > 0)
+        (*(mapData + 8 + mapEditorData.cursorX + mapEditorData.cursorY * tableSizeX))--;
+      pageMapEditor(mapIdx, -2);
+      return;
+      break;
+    case 'y':
+      saveToEEPROM();
+    case 0:
+      if (showCurrent) {
+        // Current interpreted value
+        gotoXY(xPad + xSpace, yPad + tableSizeY * ySpace + 2);
+        printFromFlash(mapCurrentOutput);
+        printMapAxis(axisTypeResult, lastValue, 1);
+        printFromFlash(ANSIclearEolAndLf);
+      }
 
-    // update cursors only:
-    gotoXY(2,yPad+ySpace+round((float)mapEditorData.lastY*(float)((float)(tableSizeY-1)*(float)ySpace/255)));
-    Serial.print(F("  "));
-    gotoXY(xPad+xSpace+round((float)mapEditorData.lastX*(float)((float)tableSizeX*(float)xSpace/255)),4);
-    Serial.print(F(" "));
+      // update cursors only:
+      gotoXY(2, yPad + ySpace + round((float)mapEditorData.lastY * (float)((float)(tableSizeY - 1) * (float)ySpace / 255)));
+      Serial.print(F("  "));
+      gotoXY(xPad + xSpace + round((float)mapEditorData.lastX * (float)((float)tableSizeX * (float)xSpace / 255)), 4);
+      Serial.print(F(" "));
 
-    mapEditorData.lastY = lastYpos;
-    mapEditorData.lastX = lastXpos;
+      mapEditorData.lastY = lastYpos;
+      mapEditorData.lastX = lastXpos;
 
-    gotoXY(2,yPad+ySpace+round((float)lastYpos*(float)((float)(tableSizeY-1)*(float)ySpace/255)));
-    Serial.print(F(">>"));
-    gotoXY(xPad+xSpace+round((float)lastXpos*(float)((float)tableSizeX*(float)xSpace/255)),4);
-    Serial.print(F("v")); 
+      gotoXY(2, yPad + ySpace + round((float)lastYpos * (float)((float)(tableSizeY - 1) * (float)ySpace / 255)));
+      Serial.print(F(">>"));
+      gotoXY(xPad + xSpace + round((float)lastXpos * (float)((float)tableSizeX * (float)xSpace / 255)), 4);
+      Serial.print(F("v"));
 
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    Serial.print(F(">"));
-    gotoXY(xPad+xSpace+mapEditorData.cursorX*xSpace+xSpace-1,yPad+ySpace+mapEditorData.cursorY*ySpace);
-    Serial.print(F("<"));
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      Serial.print(F(">"));
+      gotoXY(xPad + xSpace + mapEditorData.cursorX * xSpace + xSpace - 1, yPad + ySpace + mapEditorData.cursorY * ySpace);
+      Serial.print(F("<"));
 
-    return;
-    break;
-  default:
-    if (mapEditorData.currentMap!=mapIdx) {
-      mapEditorData.cursorX=0;
-      mapEditorData.cursorY=0;
-      mapEditorData.currentMap = mapIdx;
-    }
-    pageHeader();
-    printFromFlash(ANSIclearEos);
-    gotoXY(0,3);
-    printFromFlash(mapEditorHelp);
+      return;
+      break;
+    default:
+      if (mapEditorData.currentMap != mapIdx) {
+        mapEditorData.cursorX = 0;
+        mapEditorData.cursorY = 0;
+        mapEditorData.currentMap = mapIdx;
+      }
+      pageHeader();
+      printFromFlash(ANSIclearEos);
+      gotoXY(0, 3);
+      printFromFlash(mapEditorHelp);
   }
   // Table X header
 
-  for (int x=0;x<tableSizeX;x++) {
-    gotoXY(xPad+(1+x)*xSpace,yPad);
-    int idx = round((float)((255/(float)(tableSizeX-1)))*(float)x);
-    printPads(1,' ');
-    printMapAxis(axisTypeX,idx, ((x==0||x==(tableSizeX-1))?true:false));
+  for (int x = 0; x < tableSizeX; x++) {
+    gotoXY(xPad + (1 + x)*xSpace, yPad);
+    int idx = round((float)((255 / (float)(tableSizeX - 1))) * (float)x);
+    printPads(1, ' ');
+    printMapAxis(axisTypeX, idx, ((x == 0 || x == (tableSizeX - 1)) ? true : false));
   }
-  gotoXY(xPad+xSpace,yPad+1);
-  printPads(tableSizeX*xSpace,'-');
+  gotoXY(xPad + xSpace, yPad + 1);
+  printPads(tableSizeX * xSpace, '-');
 
   // Table Y header
 
-  for (int y=0;y<tableSizeY;y++) {
-    gotoXY(xPad-1,yPad+(1+y)*ySpace);
-    int idx = round((float)((255/(float)(tableSizeY-1)))*(float)y);
+  for (int y = 0; y < tableSizeY; y++) {
+    gotoXY(xPad - 1, yPad + (1 + y)*ySpace);
+    int idx = round((float)((255 / (float)(tableSizeY - 1))) * (float)y);
 
-    printMapAxis(axisTypeY,idx,true);
-    gotoXY(xPad+xSpace-1,yPad+(1+y)*ySpace);
+    printMapAxis(axisTypeY, idx, true);
+    gotoXY(xPad + xSpace - 1, yPad + (1 + y)*ySpace);
     Serial.print(F("|"));
-    if (y<tableSizeY-1) {
-      gotoXY(xPad+xSpace-1,yPad+(1+y)*ySpace+1); // works for ySpace=2
+    if (y < tableSizeY - 1) {
+      gotoXY(xPad + xSpace - 1, yPad + (1 + y)*ySpace + 1); // works for ySpace=2
       Serial.print(F("|"));
     }
 
   }
-  for (int y=0;y<tableSizeY;y++) {
-    for (int x=0;x<tableSizeX;x++) {
-      gotoXY(xPad+(1+x)*xSpace,yPad+(1+y)*ySpace);
-      printPads(1,' ');
+  for (int y = 0; y < tableSizeY; y++) {
+    for (int x = 0; x < tableSizeX; x++) {
+      gotoXY(xPad + (1 + x)*xSpace, yPad + (1 + y)*ySpace);
+      printPads(1, ' ');
       //Serial.print(*(mapData+8+x*y),DEC);
-      printMapAxis(axisTypeResult,*(mapData+8+x+y*tableSizeX),0);
+      printMapAxis(axisTypeResult, *(mapData + 8 + x + y * tableSizeX), 0);
     }
   }
 
@@ -1485,19 +1492,19 @@ const unsigned char debugHeader[] PROGMEM = "Target pres.   Actual press.  Actua
 void pageHelp(char key) {
   //pageHeader();
   //Serial.print("help!");
-  //printFromFlash(ANSIclearEos);	
+  //printFromFlash(ANSIclearEos);
   if (key) {
     printFromFlash(debugHeader);
     Serial.print(F("\r\n"));
-    printIntWithPadding(toKpaMAP(controls.vntTargetPressure),3,'0');
-    printPads(12,' ');
-    printIntWithPadding(toKpaMAP(controls.mapCorrected),3,'0');
-    printPads(12,' ');
-    printIntWithPadding(controls.vntPositionDC,3,'0');
-    printPads(12,' ');
-    printIntWithPadding(controls.rpmActual,4,'0');
-    printPads(1,' ');
-    printIntWithPadding(controls.tpsCorrected,4,'0');
+    printIntWithPadding(toKpaMAP(controls.vntTargetPressure), 3, '0');
+    printPads(12, ' ');
+    printIntWithPadding(toKpaMAP(controls.mapCorrected), 3, '0');
+    printPads(12, ' ');
+    printIntWithPadding(controls.vntPositionDC, 3, '0');
+    printPads(12, ' ');
+    printIntWithPadding(controls.rpmActual, 4, '0');
+    printPads(1, ' ');
+    printIntWithPadding(controls.tpsCorrected, 4, '0');
     Serial.print(F("\r\n"));
   }
 }
@@ -1515,22 +1522,22 @@ const unsigned char ServoFineTuneD[] PROGMEM = "PID Kd:";
 const unsigned char ServoFineTuneBias[] PROGMEM = "PID Bias (10 default):";
 
 void visualizeActuator(char y) {
-  gotoXY(1,y);
+  gotoXY(1, y);
 
-  printFromFlash(ServoFineTunePosition); 
+  printFromFlash(ServoFineTunePosition);
   // append string presentation of number to end
-  strcpy_P(buffer, (PGM_P)ServoFineTunePositionScale); 
+  strcpy_P(buffer, (PGM_P)ServoFineTunePositionScale);
   // Visualize actuator
-  memset(buffer,'*',controls.vntPositionDC /4);
+  memset(buffer, '*', controls.vntPositionDC / 4);
   Serial.print(buffer);
   printFromFlash(ANSIclearEol);
-  gotoXY(1,y+1);
+  gotoXY(1, y + 1);
   printFromFlash(ANSIclearEol);
-  gotoXY(1,y+1);
-  gotoXY(12+controls.vntMaxDc/4,y+1);
+  gotoXY(1, y + 1);
+  gotoXY(12 + controls.vntMaxDc / 4, y + 1);
   Serial.print(F("^Max"));
-  gotoXY(12+controls.vntMinDc/4,y+1);
-  Serial.print(F("^Min")); 
+  gotoXY(12 + controls.vntMinDc / 4, y + 1);
+  Serial.print(F("^Min"));
 }
 
 void pageServoFineTune(char key) {
@@ -1538,103 +1545,103 @@ void pageServoFineTune(char key) {
 
 
   switch (key) {
-  case 'p':
-    if (settings.boostKp>0) settings.boostKp--;
-    calcKp();
-    break;
-  case 'P':
-    if (settings.boostKp<1000) settings.boostKp++;
-    calcKp();
-    break;
-  case 'i':
-    if (settings.boostKi>0) settings.boostKi--;
-    calcKi();
-    break;
-  case 'I':
-    if (settings.boostKi<500) settings.boostKi++;
-    calcKi();
-    break;
-  case 'd':
-    if (settings.boostKd>0) settings.boostKd--;
-    calcKd();
-    break;
-  case 'D':
-    if (settings.boostKd<255) settings.boostKd++;
-    calcKd();
-    break;
+    case 'p':
+      if (settings.boostKp > 0) settings.boostKp--;
+      calcKp();
+      break;
+    case 'P':
+      if (settings.boostKp < 1000) settings.boostKp++;
+      calcKp();
+      break;
+    case 'i':
+      if (settings.boostKi > 0) settings.boostKi--;
+      calcKi();
+      break;
+    case 'I':
+      if (settings.boostKi < 500) settings.boostKi++;
+      calcKi();
+      break;
+    case 'd':
+      if (settings.boostKd > 0) settings.boostKd--;
+      calcKd();
+      break;
+    case 'D':
+      if (settings.boostKd < 255) settings.boostKd++;
+      calcKd();
+      break;
 
-  case 'b':
-    if (settings.boostBias>0) settings.boostBias--;
-    break;
-  case 'B':
-    if (settings.boostBias<50) settings.boostBias++;
-    break;
+    case 'b':
+      if (settings.boostBias > 0) settings.boostBias--;
+      break;
+    case 'B':
+      if (settings.boostBias < 50) settings.boostBias++;
+      break;
 
-  case 'y': 
-    saveToEEPROM(); 
-    break;
+    case 'y':
+      saveToEEPROM();
+      break;
   }
 
 
   visualizeActuator(3);
 
-  gotoXY(1,5);
+  gotoXY(1, 5);
 
-  printStringWithPadding(ServoFineTuneChargePressureRequest,25,' ');
-  printPads(1,' ');
-  printIntWithPadding(toKpaMAP(controls.vntTargetPressure),3,'0');
+  printStringWithPadding(ServoFineTuneChargePressureRequest, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(toKpaMAP(controls.vntTargetPressure), 3, '0');
   Serial.print(F(" kPa"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoFineTuneChargePressureActual,25,' ');
-  printPads(1,' ');
-  printIntWithPadding(toKpaMAP(controls.mapCorrected),3,'0');
+  printStringWithPadding(ServoFineTuneChargePressureActual, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(toKpaMAP(controls.mapCorrected), 3, '0');
   Serial.print(F(" kPa"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoFineTuneTPS,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(controls.tpsCorrected,3,'0');
+  printStringWithPadding(ServoFineTuneTPS, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.tpsCorrected, 3, '0');
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoOutputDC,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(controls.vntPositionRemapped,3,'0');
+  printStringWithPadding(ServoOutputDC, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(controls.vntPositionRemapped, 3, '0');
   printFromFlash(ANSIclearEolAndLf);
 
 
-  printStringWithPadding(ServoFineTuneP,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(settings.boostKp,3,'0');
+  printStringWithPadding(ServoFineTuneP, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(settings.boostKp, 3, '0');
   Serial.print(F(" P ("));
-  Serial.print(controls.boostCalculatedP*(100*settings.boostKp/PIDControlRatio));
-  Serial.print(F(")"));      
+  Serial.print(controls.boostCalculatedP * (100 * settings.boostKp / PIDControlRatio));
+  Serial.print(F(")"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoFineTuneI,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(settings.boostKi,3,'0');
+  printStringWithPadding(ServoFineTuneI, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(settings.boostKi, 3, '0');
   Serial.print(F(" I ("));
-  Serial.print(controls.boostCalculatedI*(100*settings.boostKi/PIDControlRatio));      
-  Serial.print(F(")"));            
+  Serial.print(controls.boostCalculatedI * (100 * settings.boostKi / PIDControlRatio));
+  Serial.print(F(")"));
   printFromFlash(ANSIclearEolAndLf);
 
 
-  printStringWithPadding(ServoFineTuneD,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(settings.boostKd,3,'0');
+  printStringWithPadding(ServoFineTuneD, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(settings.boostKd, 3, '0');
   Serial.print(F(" D ("));
-  Serial.print(controls.boostCalculatedD*(settings.boostKd/PIDControlRatio));      
-  Serial.print(F(")"));            
+  Serial.print(controls.boostCalculatedD * (settings.boostKd / PIDControlRatio));
+  Serial.print(F(")"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoFineTuneBias,25,' ');
-  printPads(1,' ');  
-  printIntWithPadding(settings.boostBias,3,'0');
+  printStringWithPadding(ServoFineTuneBias, 25, ' ');
+  printPads(1, ' ');
+  printIntWithPadding(settings.boostBias, 3, '0');
   Serial.print(F(" B"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printFromFlash(ANSIclearEos);	
+  printFromFlash(ANSIclearEos);
 }
 
 
@@ -1643,14 +1650,14 @@ int getFilteredAverage(struct avgStruct *a) {
   int maxVal = 255;
   long int avgAll = 0;
 
-  for (int i=0; i < a->size;i++) {
+  for (int i = 0; i < a->size; i++) {
 
     if (a->avgData[i] < minVal) {
       minVal = a->avgData[i];
-    } 
+    }
     if (a->avgData[i] > maxVal) {
       maxVal = a->avgData[i];
-    } 
+    }
 
     avgAll += a->avgData[i];
   }
@@ -1661,29 +1668,23 @@ int getFilteredAverage(struct avgStruct *a) {
 
 void readValuesTps() {
   tps_read.update();
-//  tpsAvg.pos++;
-//  if (tpsAvg.pos>=tpsAvg.size)
-//    tpsAvg.pos=0;
-//  tpsAvg.avgData[tpsAvg.pos] = analogRead(PIN_TPS);   
+  controls.tpsInput = tps_read.getValue();
 }
 
 void readValuesMap() {
   map_read.update();
-//  mapAvg.pos++;
-//  if (mapAvg.pos>=mapAvg.size)
-//    mapAvg.pos=0;
-//  mapAvg.avgData[mapAvg.pos] = analogRead(PIN_MAP);
+  controls.mapInput = map_read.getValue();
 }
 
 void readValuesEgt() {
   int egtread;
-  
+
   egtread = temp.readThermocouple(CELSIUS);
 
-  if (egtread<=0) {
+  if (egtread <= 0) {
     controls.temp1 = 0;
-  } 
-  else if (egtread >= 10000) {        // MAX31855 library returns > 10000 when there was a problem reading 
+  }
+  else if (egtread >= 10000) {        // MAX31855 library returns > 10000 when there was a problem reading
     controls.temp1 = controls.temp1;
   }
   else if (egtread >= settings.egtMax) {
@@ -1713,6 +1714,17 @@ void processValues() {
 
   float toControlVNT;
 
+  controls.vntMaxDc = mapLookUp(boostDCMax, controls.rpmCorrected, controls.tpsCorrected);
+  controls.vntMinDc = mapLookUp(boostDCMin, controls.rpmCorrected, controls.tpsCorrected);
+
+  controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
+  controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
+  controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
+  
+  controls.empInput = getFilteredAverage(&empAvg);
+  controls.empCorrected = mapValues(controls.empInput, settings.empMin, settings.empMax);
+  controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
+
   /* This is the available span of our DC - we can only go between min and max */
   controlSpan = controls.vntMaxDc - controls.vntMinDc;
 
@@ -1720,27 +1732,14 @@ void processValues() {
   inputSpan = 255.0;
 
   /* Make the input a percentage of the availble input span */
-  scaledInput = (float)controls.mapCorrected / inputSpan; 
-  
-  controls.vntMaxDc = mapLookUp(boostDCMax,controls.rpmCorrected,controls.tpsCorrected);
-  controls.vntMinDc = mapLookUp(boostDCMin,controls.rpmCorrected,controls.tpsCorrected);
-
-
-  controls.rpmCorrected = mapValues(controls.rpmActual,0,settings.rpmMax);
-  controls.mapInput = map_read.getValue();
-  controls.mapCorrected = mapValues(controls.mapInput,settings.mapMin,settings.mapMax);
-  controls.tpsInput = tps_read.getValue();
-  controls.tpsCorrected = mapValues(controls.tpsInput,settings.tpsMin,settings.tpsMax);
-  controls.empInput = getFilteredAverage(&empAvg);
-  controls.empCorrected = mapValues(controls.empInput,settings.empMin,settings.empMax);
-  controls.egtCorrected = mapValues(controls.temp1,settings.egtMin,settings.egtMax);
+  scaledInput = (float)controls.mapCorrected / inputSpan;
 
   // EGT controls
-  controls.auxOutput = mapLookUp(auxMap,controls.rpmCorrected,controls.egtCorrected);
+  controls.auxOutput = mapLookUp(auxMap, controls.rpmCorrected, controls.egtCorrected);
 
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
-  } 
+  }
   else if ( controls.rpmActual < IDLE_MAX_RPM ) {    // Accelerator is at zero and we are in the idle speed band
     controls.idling = true;
   }
@@ -1749,15 +1748,15 @@ void processValues() {
   }
 
   // Ensure inputs are valid
-  if (scaledInput>1.0) {
+  if (scaledInput > 1.0) {
     scaledInput = 1.0;
-  } 
-  else if (scaledInput<0) {
+  }
+  else if (scaledInput < 0) {
     scaledInput = 0;
   }
 
   if ((controls.idling)) {
-    // If we are at idle then we don't want any boost regardless of map 
+    // If we are at idle then we don't want any boost regardless of map
 
     controls.vntTargetPressure = 0;                    // Display zero target pressure on the LCD at idle
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
@@ -1765,35 +1764,35 @@ void processValues() {
     error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
     derivate = 0;                                      // See above
     controls.mode = 0;                                 // System status = idling
-    
+
     if (settings.options & OPTIONS_VANESOPENIDLE) {
-      controls.pidOutput=0;                            // Final output is zero - we aren't trying to do anything
+      controls.pidOutput = 0;                          // Final output is zero - we aren't trying to do anything
     } else {
-      controls.pidOutput=1.0;                          // Set to whatever the max on the map is
+      controls.pidOutput = 1.0;                        // Set to whatever the max on the map is
     }
-    
-  } 
+
+  }
   else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
     // Normal running mode
 
     /* Look up the requested boost */
-    controls.vntTargetPressure = mapLookUp(boostRequest,controls.rpmCorrected,controls.tpsCorrected);
+    controls.vntTargetPressure = mapLookUp(boostRequest, controls.rpmCorrected, controls.tpsCorrected);
 
     /* Now make the target a percentage of the same input span */
     scaledTarget = (float)controls.vntTargetPressure / inputSpan;
 
     /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
-    if (scaledTarget>1.0) {
+    if (scaledTarget > 1.0) {
       scaledTarget = 1.0;
-    } 
-    else if (scaledTarget<0) {
+    }
+    else if (scaledTarget < 0) {
       scaledTarget = 0;
     }
-    
+
     /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
     derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
-    
+
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
     float scaledError = scaledTarget - scaledInput;
 
@@ -1814,21 +1813,21 @@ void processValues() {
           if (scaledError < rampActive) {
             // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum
             controls.mode = 5;                 // Under but accelerating upwards rapidly
-            integral += Ki * underGain * scaledError * timeChange; 
+            integral += Ki * underGain * scaledError * timeChange;
             error = Kp * underGain * scaledError;
           } else {
-            // We haven't overshot and we're still somewhat far from the target. We will continue as normal. 
+            // We haven't overshot and we're still somewhat far from the target. We will continue as normal.
             controls.mode = 8;                    // Normal PID
-            if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
               // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-              integral += Ki * scaledError * timeChange; 
+              integral += Ki * scaledError * timeChange;
             }
             error = Kp * scaledError;
           }
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
           controls.mode = 4;                  // Overshot and still accelerating upwards
-          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * overGain * scaledError * timeChange;
           }
           error = Kp * overGain * scaledError;
@@ -1837,15 +1836,15 @@ void processValues() {
         if (-scaledError > maxPosErrorPct) {
           //We're quite a bit over
           controls.mode = 3;                   // Over but not steeply accelerating
-          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * overGain * scaledError * timeChange; 
-          } 
+            integral += Ki * overGain * scaledError * timeChange;
+          }
           error = Kp * overGain * scaledError;
         } else if (abs(scaledError) < fineBand) {
           // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode, disable derivative.
           controls.mode = 7;
-          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             integral += Ki * fineGain * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
@@ -1853,9 +1852,9 @@ void processValues() {
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
-          if (!(controls.prevPidOutput>=0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * scaledError * timeChange; 
+            integral += Ki * scaledError * timeChange;
           }
           error = Kp * scaledError;
         }
@@ -1870,10 +1869,10 @@ void processValues() {
     }
 
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
-    if (error>0) {
-      error = (error * (float)settings.boostBias) / 10; 
-    } 
-    else if ((error<0) && (scaledInput > PIDMaxBoost)) {
+    if (error > 0) {
+      error = (error * (float)settings.boostBias) / 10;
+    }
+    else if ((error < 0) && (scaledInput > PIDMaxBoost)) {
       controls.mode = 6;              // We're in emergency pullback mode
       error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
     }
@@ -1881,7 +1880,7 @@ void processValues() {
     /* PID Output */
     controls.pidOutput = error + integral - derivate;
 
-  } 
+  }
   else {
     // We must be over max RPM, open the vanes!
     controls.pidOutput = 0;
@@ -1894,43 +1893,43 @@ void processValues() {
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > 1.0) {
     controls.pidOutput = 1.0;
-  } 
+  }
   else if (controls.pidOutput < 0) {
     controls.pidOutput = 0;
   }
 
   controls.prevPidOutput = controls.pidOutput;
 
-  // Not sure why I used two variables here? 
+  // Not sure why I used two variables here?
   toControlVNT =  controls.pidOutput * controlSpan + controls.vntMinDc;
 
   controls.vntPositionDC = toControlVNT;
 
   /* This loop should never ever be true - a 100% output should be diff between min and max + min which should equal max
-   but I'm not quite ready to remove this */
-  if (controls.vntPositionDC>controls.vntMaxDc)
-    controls.vntPositionDC=controls.vntMaxDc;
+    but I'm not quite ready to remove this */
+  if (controls.vntPositionDC > controls.vntMaxDc)
+    controls.vntPositionDC = controls.vntMaxDc;
 
   /* Display these as real numbers - will make the logs more useful as we can try different values */
-  controls.boostCalculatedP=(error);
-  controls.boostCalculatedI=(integral);
-  controls.boostCalculatedD=(derivate);
+  controls.boostCalculatedP = (error);
+  controls.boostCalculatedI = (integral);
+  controls.boostCalculatedD = (derivate);
 
   unsigned char finalPos;
   finalPos = controls.vntPositionDC;
 
   if (settings.options & OPTIONS_VNTOUTPUTINVERTED) {
-    controls.vntPositionRemapped = 255-finalPos;
-  } 
+    controls.vntPositionRemapped = 255 - finalPos;
+  }
   else {
-    controls.vntPositionRemapped = finalPos;  
-  } 
+    controls.vntPositionRemapped = finalPos;
+  }
 }
 
 void updateOutputValues(bool showDebug) {
   // PWM output pins
-  analogWrite(PIN_VNT_N75,controls.vntPositionRemapped);
-  analogWrite(PIN_AUX_N75,controls.auxOutput);    
+  analogWrite(PIN_VNT_N75, controls.vntPositionRemapped);
+  analogWrite(PIN_AUX_N75, controls.auxOutput);
 }
 
 void layoutLCD() {
@@ -1939,10 +1938,10 @@ void layoutLCD() {
   lcd.write(0x58);
   delay(100);
 
-  position_lcd(0,0);
+  position_lcd(0, 0);
   lcd.print(F("000/000k 0000rpm"));
 
-  position_lcd(0,1);
+  position_lcd(0, 1);
   lcd.print(F("000C T000   A000"));
 }
 
@@ -1950,34 +1949,34 @@ void layoutLCD() {
 byte egtState = 0;
 byte lcdFlipFlop = 0;
 
-void updateLCD() { 
-  
-  digitalWrite(PIN_HEARTBEAT,lcdFlipFlop);  // Flash the onboard LED, confirms the program is running
-  
+void updateLCD() {
+
+  digitalWrite(PIN_HEARTBEAT, lcdFlipFlop); // Flash the onboard LED, confirms the program is running
+
   if (lcdFlipFlop == 1 ) {
     // Only update half the LCD each cycle. Allow more frequent updates without disturbing control loop.
-    position_lcd(0,0);
-    printn_lcd(toKpaMAP(controls.mapCorrected),3);
+    position_lcd(0, 0);
+    printn_lcd(toKpaMAP(controls.mapCorrected), 3);
     lcd.print(F("/"));
-    printn_lcd(toKpaMAP(controls.vntTargetPressure),3);
+    printn_lcd(toKpaMAP(controls.vntTargetPressure), 3);
 
     lcd.print(F("  "));
-    printn_lcd(controls.rpmActual,4);
+    printn_lcd(controls.rpmActual, 4);
     lcd.print(F("rpm"));
     lcdFlipFlop = 0;
   } else {
-    position_lcd(0,1);
-    printn_lcd(controls.temp1,3);
+    position_lcd(0, 1);
+    printn_lcd(controls.temp1, 3);
     lcd.print(F("C T"));
-    printn_lcd(controls.tpsCorrected,3);
+    printn_lcd(controls.tpsCorrected, 3);
 
     lcd.print(F("   A"));
-    printn_lcd(controls.vntPositionRemapped,3);
+    printn_lcd(controls.vntPositionRemapped, 3);
     lcdFlipFlop = 1;
   }
-  
+
   if (controls.temp1 < EGT_COOL) {
-    if (egtState != 1); 
+    if (egtState != 1);
     {
       // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
@@ -1988,9 +1987,9 @@ void updateLCD() {
       lcd.write(255);
       egtState = 1;
     }
-  } 
+  }
   else if (controls.temp1 < EGT_WARN) {
-    if (egtState != 2); 
+    if (egtState != 2);
     {
       // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
@@ -2001,9 +2000,9 @@ void updateLCD() {
       lcd.write((uint8_t)0);
       egtState = 2;
     }
-  } 
+  }
   else if (controls.temp1 < EGT_ALARM) {
-    if (egtState != 3); 
+    if (egtState != 3);
     {
       // Make the screen orange if it isn't already
       lcd.write(0xFE);
@@ -2013,9 +2012,9 @@ void updateLCD() {
       lcd.write((uint8_t)0);
       egtState = 3;
     }
-  } 
+  }
   else {
-    if (egtState != 4); 
+    if (egtState != 4);
     {
       // Make the screen red if it isn't already
       lcd.write(0xFE);
@@ -2025,7 +2024,7 @@ void updateLCD() {
       lcd.write((uint8_t)0);
       egtState = 4;
     }
-  }        
+  }
 }
 
 void position_lcd(int col, int row) {
@@ -2057,48 +2056,48 @@ void printn_lcd(int lcdnumber, int lcddigits) {
   lcd.print(lcdnumber);
 }
 
-void displayPage(char page,char data) {
-  switch(page) {
-  case 1:
-    pageStatusAndAdaption(data);
-    break;
-  case 2:
-    pageServoFineTune(data);
-    break;    
-  case 3:
-    pageMapEditor(0,data);
-    visualizeActuator(28);
+void displayPage(char page, char data) {
+  switch (page) {
+    case 1:
+      pageStatusAndAdaption(data);
+      break;
+    case 2:
+      pageServoFineTune(data);
+      break;
+    case 3:
+      pageMapEditor(0, data);
+      visualizeActuator(28);
 
-    break;
-  case 4:
-    pageMapEditor(1,data);
-    visualizeActuator(28);
+      break;
+    case 4:
+      pageMapEditor(1, data);
+      visualizeActuator(28);
 
-    break; 
-  case 5:
-    pageMapEditor(2,data);
-    visualizeActuator(28);
-    break;
-  case 6:
-    pageMapEditor(3,data);
-    break;			
-  case 7:
-    pageOutputTests(data);
-    visualizeActuator(28);
-    break;
-  case 9:
-    pageExport(data);
-    break;
-  case 10:
-    pageDataLogger(data);
-    break;
-  case 0:
-  default:
-    pageAbout(data);
+      break;
+    case 5:
+      pageMapEditor(2, data);
+      visualizeActuator(28);
+      break;
+    case 6:
+      pageMapEditor(3, data);
+      break;
+    case 7:
+      pageOutputTests(data);
+      visualizeActuator(28);
+      break;
+    case 9:
+      pageExport(data);
+      break;
+    case 10:
+      pageDataLogger(data);
+      break;
+    case 0:
+    default:
+      pageAbout(data);
   }
 }
 
-bool freezeModeEnabled=false;
+bool freezeModeEnabled = false;
 
 unsigned long serialLoop = 0;
 unsigned long execLoop = 0;
@@ -2109,44 +2108,39 @@ void loop() {
 
   static char lastPage;
 
-  //We started executing at...
-  execTimeRead=millis();
-
-  readValuesTps();
-  readValuesMap();
-
-  execTimeRead=millis() - execTimeRead;
-
   /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
 
   if ((millis() - execLoop) >= EXEC_DELAY) {
 
-    execTimeAct = millis();
 
-    // Reading the thermocouple takes a bit and the signal is quite clean; reading it a few times per second is sufficient
+    execTimeRead = millis();
+    readValuesTps();
+    readValuesMap();
     readValuesEgt();
+    execTimeRead = millis() - execTimeRead;
 
+    
+    execTimeAct = millis(); 
     // We will actually process our values and change actuators every EXEC_DELAY milliseconds
     if (freezeModeEnabled) {
       Serial.print(F("\rFREEZE "));
-    } 
+    }
     else {
       // update output values according to input
       calcRpm();
       processValues();
       updateOutputValues(false);
-    }  
+    }
     execLoop = millis();
-
     execTimeAct = execLoop - execTimeAct;
   }
 
 
   /* we are only going to actualy process every SERIAL_LOOP_DELAY milliseconds though we will read from our sensors every loop
-   This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
-   single time */
+    This way we can get high resolution readings from the sensors without waiting for the actual calculations to occur every
+    single time */
 
-  else if ((millis() - serialLoop) >= SERIAL_DELAY) {  
+  else if ((millis() - serialLoop) >= SERIAL_DELAY) {
 
     unsigned char data = 0;
 
@@ -2155,44 +2149,44 @@ void loop() {
       data = Serial.read();
       if (data >= '0' && data <= '9') {
         page = data - '0';
-      }   
+      }
       else if (data == ':') {
         freezeModeEnabled = !freezeModeEnabled;
-      } 
+      }
       else if (data == '#') {
         page = 10;
-      } 
+      }
       else if (data == 27) {
         data = Serial.read();
         if (data == '[') {
           data = Serial.read();
           switch (data) {
-          case 'A':
-            data = 'k';
-            break;
-          case 'B':
-            data = 'j';
-            break;
-          case 'C':
-            data = 'l';
-            break;
-          case 'D':
-            data = 'h';
-            break;
+            case 'A':
+              data = 'k';
+              break;
+            case 'B':
+              data = 'j';
+              break;
+            case 'C':
+              data = 'l';
+              break;
+            case 'D':
+              data = 'h';
+              break;
 
-          default:
-            data = 0;
+            default:
+              data = 0;
           }
         }
       }
       lastPage = page;
     }
-    displayPage(page,data);     
+    displayPage(page, data);
     serialLoop = millis();
   }
-  
+
   /* The LCD also takes a while to update; only do the update every DISPLAY_DELAY ms as we don't need a blur where numbers should be */
-  
+
   else if ((millis() - displayLoop) >= DISPLAY_DELAY) {
     execTimeLcd = millis();
     // We will only update the LCD every DISPLAY_DELAY milliseconds
