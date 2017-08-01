@@ -1703,7 +1703,7 @@ void processValues() {
 
   static float error;
   static float integral;
-  static float derivate;
+  static float derivative;
 
   float controlSpan;
   float inputSpan;
@@ -1762,7 +1762,7 @@ void processValues() {
     controls.lastInput = scaledInput;                  // Keep the derivative loop primed
     integral = 0;                                      // Only you can prevent integral windup at idle
     error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
-    derivate = 0;                                      // See above
+    derivative = 0;                                      // See above
     controls.mode = 0;                                 // System status = idling
 
     if (settings.options & OPTIONS_VANESOPENIDLE) {
@@ -1790,7 +1790,7 @@ void processValues() {
     }
 
     /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
-    derivate = Kd * (scaledInput - controls.lastInput) / timeChange;
+    derivative = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
 
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
@@ -1805,9 +1805,9 @@ void processValues() {
       error = Kp * scaledError;
     } else {
       // Turbo is producing pressure - now we can start actually controlling it
-      if ( derivate > rampThreshold ) {
+      if ( derivative > rampThreshold ) {
         // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
-        derivate = derivate * rampFactor;
+        derivative = derivative * rampFactor;
         if (scaledError > 0) {
           // We are below setpoint
           if (scaledError < rampActive) {
@@ -1848,7 +1848,7 @@ void processValues() {
             integral += Ki * fineGain * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
-          derivate = fineGain * derivate;
+          derivative = fineGain * derivative;
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
@@ -1878,7 +1878,7 @@ void processValues() {
     }
 
     /* PID Output */
-    controls.pidOutput = error + integral - derivate;
+    controls.pidOutput = error + integral - derivative;
 
   }
   else {
@@ -1913,7 +1913,7 @@ void processValues() {
   /* Display these as real numbers - will make the logs more useful as we can try different values */
   controls.boostCalculatedP = (error);
   controls.boostCalculatedI = (integral);
-  controls.boostCalculatedD = (derivate);
+  controls.boostCalculatedD = (derivative);
 
   unsigned char finalPos;
   finalPos = controls.vntPositionDC;
