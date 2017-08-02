@@ -39,7 +39,7 @@
 #define csPin 5
 #define clPin 6
 
-ResponsiveAnalogRead map_read(PIN_MAP, true);
+ResponsiveAnalogRead map_read(PIN_MAP, false);  // no sleep on the MAP read; need the resolution
 ResponsiveAnalogRead tps_read(PIN_TPS, true);
 ResponsiveAnalogRead rpm_read(0, true);
 
@@ -97,7 +97,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 /* Fine control ratios */
 #define fineBand 0.03
-#define fineGain 0.5
+#define fineGain 0.8
 
 /* RPM Smoothing control */
 #define rpmSmoothing 0.5 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
@@ -1845,7 +1845,7 @@ void processValues() {
           // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode.
           controls.mode = 7;
           if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
-            integral += Ki * fineGain * scaledError * timeChange;
+            integral += Ki * scaledError * timeChange;
           }
           error = Kp * fineGain * scaledError;
           derivative = fineGain * derivative;
