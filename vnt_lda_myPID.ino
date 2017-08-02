@@ -1275,7 +1275,7 @@ void pageDataLogger(char key) {
   Serial.print(execTimeLcd, DEC);
   Serial.print(F(","));
   Serial.print(millis() / 10, DEC);
-  printFromFlash(ANSIclearEolAndLf);
+  Serial.println();
 }
 
 void printMapAxis(unsigned char axisType, unsigned char idx, bool verbose) {
