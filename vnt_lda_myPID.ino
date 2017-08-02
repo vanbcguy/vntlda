@@ -110,7 +110,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 
 // Calculate Average values
-#define AVG_MAX 5
+#define AVG_MAX 20
 
 #define MAP_AXIS_TPS 0xDE
 #define MAP_AXIS_RPM 0xAD
@@ -276,9 +276,7 @@ struct avgStruct {
   volatile unsigned int avgData[AVG_MAX];
 };
 
-avgStruct tpsAvg;
 avgStruct mapAvg;
-avgStruct empAvg;
 
 char buffer[100]; // general purpose buffer, mainly used for string storage when printing from flash
 unsigned long lastPacketTime;
@@ -559,7 +557,6 @@ void setup() {
   Serial.println(F("\r\n"));
   Serial.write(clearScreen, sizeof(clearScreen));
 
-  tpsAvg.size = AVG_MAX;
   mapAvg.size = AVG_MAX;
 
   //initial setup of kp/ki/kd
@@ -1672,8 +1669,16 @@ void readValuesTps() {
 }
 
 void readValuesMap() {
+ 
+  mapAvg.pos++;
+  if (mapAvg.pos>=mapAvg.size)
+    mapAvg.pos=0;
+
   map_read.update();
-  controls.mapInput = map_read.getValue();
+  mapAvg.avgData[mapAvg.pos] = map_read.getValue();
+  
+  controls.mapInput = getFilteredAverage(&mapAvg);
+  
 }
 
 void readValuesEgt() {
@@ -1721,8 +1726,6 @@ void processValues() {
   controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
   controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
   
-  controls.empInput = getFilteredAverage(&empAvg);
-  controls.empCorrected = mapValues(controls.empInput, settings.empMin, settings.empMax);
   controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
 
   /* This is the available span of our DC - we can only go between min and max */
@@ -2108,14 +2111,14 @@ void loop() {
 
   static char lastPage;
 
-  /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
+  readValuesMap();  // Read every loop; we're calculating an average to clean up noise.
 
+  /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
   if ((millis() - execLoop) >= EXEC_DELAY) {
 
 
     execTimeRead = millis();
     readValuesTps();
-    readValuesMap();
     readValuesEgt();
     execTimeRead = millis() - execTimeRead;
 
