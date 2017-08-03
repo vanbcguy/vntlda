@@ -110,7 +110,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 
 // Calculate Average values
-#define AVG_MAX 20
+#define AVG_MAX 25
 
 #define MAP_AXIS_TPS 0xDE
 #define MAP_AXIS_RPM 0xAD
