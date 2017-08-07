@@ -97,7 +97,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 /* Fine control ratios */
 #define fineBand 0.03
-#define fineGain 0.8
+#define fineGain 0.9
 
 /* RPM Smoothing control */
 #define rpmSmoothing 0.5 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
@@ -1717,6 +1717,9 @@ void processValues() {
   float scaledTarget;
   float scaledBias;
 
+  float minControl;
+  float maxControl;
+
   float toControlVNT;
 
   controls.vntMaxDc = mapLookUp(boostDCMax, controls.rpmCorrected, controls.tpsCorrected);
@@ -1729,7 +1732,9 @@ void processValues() {
   controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
 
   /* This is the available span of our DC - we can only go between min and max */
-  controlSpan = controls.vntMaxDc - controls.vntMinDc;
+  // controlSpan = controls.vntMaxDc - controls.vntMinDc;
+  minControl = (float)controls.vntMinDc / (float)255;
+  maxControl = (float)controls.vntMaxDc / (float)255;
 
   /* This is the available span of our input - we can only go between 0-255 */
   inputSpan = 255.0;
@@ -1769,9 +1774,9 @@ void processValues() {
     controls.mode = 0;                                 // System status = idling
 
     if (settings.options & OPTIONS_VANESOPENIDLE) {
-      controls.pidOutput = 0;                          // Final output is zero - we aren't trying to do anything
+      controls.pidOutput = minControl;                 // Final output is zero - we aren't trying to do anything
     } else {
-      controls.pidOutput = 1.0;                        // Set to whatever the max on the map is
+      controls.pidOutput = maxControl;                 // Set to whatever the max on the map is
     }
 
   }
@@ -1821,7 +1826,7 @@ void processValues() {
           } else {
             // We haven't overshot and we're still somewhat far from the target. We will continue as normal.
             controls.mode = 8;                    // Normal PID
-            if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+            if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
               // If we are at the upper or lower limit then don't integrate, otherwise go ahead
               integral += Ki * scaledError * timeChange;
             }
@@ -1830,7 +1835,7 @@ void processValues() {
         } else {
           // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
           controls.mode = 4;                  // Overshot and still accelerating upwards
-          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
             integral += Ki * overGain * scaledError * timeChange;
           }
           error = Kp * scaledError;
@@ -1839,23 +1844,23 @@ void processValues() {
         if (-scaledError > maxPosErrorPct) {
           //We're quite a bit over
           controls.mode = 3;                   // Over but not steeply accelerating
-          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
             integral += Ki * overGain * scaledError * timeChange;
           }
           error = Kp * overGain * scaledError;
-        } else if (abs(scaledError) < fineBand) {
+        } else if (fabs(scaledError) < fineBand) {
           // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode.
           controls.mode = 7;
-          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
             integral += Ki * scaledError * timeChange;
           }
-          error = Kp * fineGain * scaledError;
+          error = Kp * scaledError;  // no more fine gain - * fineGain
           derivative = fineGain * derivative;
         } else {
           // We are spooled but everything is normal; we can use normal PID
           controls.mode = 2;                    // Normal PID
-          if (!(controls.prevPidOutput >= 0.99 && error > 0) && !(controls.prevPidOutput <= 0 && error < 0)) {
+          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
             // If we are at the upper or lower limit then don't integrate, otherwise go ahead
             integral += Ki * scaledError * timeChange;
           }
@@ -1865,10 +1870,10 @@ void processValues() {
     }
 
     /* Can't have a value below zero... */
-    if ( integral < 0 ) {
-      integral = 0;
-    } else if ( integral > 1 ) {
-      integral = 1;
+    if ( integral < minControl ) {
+      integral = minControl;
+    } else if ( integral > maxControl ) {
+      integral = maxControl;
     }
 
     /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
@@ -1886,7 +1891,7 @@ void processValues() {
   }
   else {
     // We must be over max RPM, open the vanes!
-    controls.pidOutput = 0;
+    controls.pidOutput = minControl;
   }
 
 
@@ -1894,18 +1899,18 @@ void processValues() {
   controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
-  if (controls.pidOutput > 1.0) {
-    controls.pidOutput = 1.0;
+  if (controls.pidOutput > maxControl) {
+    controls.pidOutput = maxControl;
+    integral = maxControl - error + derivative;
   }
-  else if (controls.pidOutput < 0) {
-    controls.pidOutput = 0;
+  else if (controls.pidOutput < minControl) {
+    controls.pidOutput = minControl;
   }
 
   controls.prevPidOutput = controls.pidOutput;
 
-  // Not sure why I used two variables here?
-  toControlVNT =  controls.pidOutput * controlSpan + controls.vntMinDc;
-
+  toControlVNT = controls.pidOutput * 255;
+  
   controls.vntPositionDC = toControlVNT;
 
   /* This loop should never ever be true - a 100% output should be diff between min and max + min which should equal max
