@@ -21,7 +21,6 @@
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
 
-#define PIN_TEMP2 A3
 #define PIN_MAP A1
 #define PIN_TPS A0
 #define PIN_EMP A2
@@ -76,13 +75,11 @@ MAX31855 temp(doPin, csPin, clPin );
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
   a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
-#define rpmResolution 10
+#define rpmResolution 30
 
 /* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
-  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things.
-  preSpoolProp is a static value */
+  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
 #define preSpoolInt 0.75
-#define preSpoolProp 0.25
 #define spoolMinBoost 10 // kpa
 
 /* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
@@ -99,9 +96,6 @@ MAX31855 temp(doPin, csPin, clPin );
 #define fineBand 0.03
 #define fineGain 0.9
 
-/* RPM Smoothing control */
-#define rpmSmoothing 0.5 // Value between >0 and 1.0 - the closer to 1.0 the less dampening and the faster the RPM values will respond
-
 
 // Set loop delay times
 #define SERIAL_DELAY 107 // ms
@@ -110,7 +104,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 
 // Calculate Average values
-#define AVG_MAX 25
+#define AVG_MAX 15
 
 #define MAP_AXIS_TPS 0xDE
 #define MAP_AXIS_RPM 0xAD
@@ -121,7 +115,7 @@ MAX31855 temp(doPin, csPin, clPin );
 #define MAP_AXIS_RAW 0x0
 #define MAP_AXIS_EGT 0xAE
 
-unsigned char *auxMap, *boostRequest, *boostDCMax, *boostDCMin;
+// unsigned char *auxMap, *boostRequest, *boostDCMax, *boostDCMin, *n75precontrolMap;
 
 /*
   MAP format:
@@ -133,24 +127,24 @@ unsigned char *auxMap, *boostRequest, *boostDCMax, *boostDCMin;
 
 */
 
-unsigned char auxMap1[] = {
+unsigned char auxMap[] = {
   'M', '2', 'D',
-  0x5, 0x8, MAP_AXIS_RPM, MAP_AXIS_EGT, MAP_AXIS_DUTY_CYCLE, // 01 - new version
-  0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0,
-  60, 60, 60, 60, 210,
-  210, 210, 210, 210, 210,
+  0x6, 0x8, MAP_AXIS_RPM, MAP_AXIS_EGT, MAP_AXIS_DUTY_CYCLE, // 01 - new version
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  60, 60, 60, 60, 210, 210,
+  210, 210, 210, 210, 210, 210,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
 
-unsigned char boostRequest1[] = {
+unsigned char boostRequest[] = {
   'M', '2', 'D',
-  0xA, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_KPA, // 01 - new version
+  0xA, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_KPA, // 01 - new version
   0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
   0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
   0, 40, 40, 40, 40, 40, 40, 40, 40, 20,
@@ -161,12 +155,13 @@ unsigned char boostRequest1[] = {
   0, 83, 100, 100, 100, 100, 100, 100, 100, 90,
   0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
   0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
+  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
-unsigned char boostDCMax1[] = {
+unsigned char boostDCMax[] = {
   'M', '2', 'D',
-  0x8, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
   200, 200, 200, 200, 200, 200, 200, 80,
   200, 200, 200, 200, 200, 200, 200, 80,
   200, 200, 200, 200, 200, 200, 200, 80,
@@ -177,12 +172,13 @@ unsigned char boostDCMax1[] = {
   200, 200, 200, 200, 200, 200, 200, 80,
   200, 185, 180, 180, 180, 180, 180, 80,
   200, 185, 170, 170, 170, 170, 170, 80,
+  200, 185, 170, 170, 170, 170, 170, 80,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
-unsigned char boostDCMin1[] = {
+unsigned char boostDCMin[] = {
   'M', '2', 'D',
-  0x8, 0xA, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
   0, 0, 70, 70, 70, 70, 70, 70,
   0, 70, 70, 70, 70, 70, 70, 70,
   0, 70, 70, 70, 70, 70, 70, 70,
@@ -193,12 +189,29 @@ unsigned char boostDCMin1[] = {
   0, 70, 70, 70, 70, 70, 70, 70,
   0, 70, 70, 70, 70, 70, 70, 70,
   0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
+unsigned char n75precontrolMap[] = {
+  'M', '2', 'D',
+  0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0, 0, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  0, 70, 70, 70, 70, 70, 70, 70,
+  00, 00, 00,                // lastX,lastY,lastRet
+};
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v2.6a.";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.";
 const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -244,8 +257,9 @@ struct controlsStruct {
   unsigned char vntTargetPressure;
   unsigned char vntPositionRemapped;
   unsigned char vntPositionDC;
-  unsigned char vntMinDc;
-  unsigned char vntMaxDc;
+  int vntMinDc;
+  int vntMaxDc;
+  int n75precontrol;
 
   // calculated value
   volatile int rpmActual;
@@ -289,7 +303,7 @@ const char *pages[] = {
 
 unsigned char **editorMaps;
 unsigned char *editorMaps1[] = {
-  boostRequest1, boostDCMin1, boostDCMax1, auxMap1
+  boostRequest, boostDCMin, boostDCMax, auxMap, n75precontrolMap
 };
 
 unsigned char clearScreen[] =  {
@@ -386,7 +400,7 @@ void calcRpm() {
   {
     int rpm;
 
-    // detachInterrupt(0); // don't trigger increments while we're calculating
+    detachInterrupt(0); // don't trigger increments while we're calculating
 
     teethSeconds = 60000000 / settings.rpmTeethsPerRotation;
 
@@ -397,7 +411,7 @@ void calcRpm() {
     rpmMicros = micros();
     teethNo = 0;
 
-    // attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
+    attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
 
     // controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
 
@@ -411,26 +425,11 @@ void calcRpm() {
 }
 
 void gotoXY(char x, char y) {
-  Serial.print("\e[");
+  Serial.print(F("\e["));
   Serial.print(y, DEC);
-  Serial.print(";");
+  Serial.print(F(";"));
   Serial.print(x, DEC);
-  Serial.print("H");
-}
-
-void modeSelect() {
-  // This needs to be removed, we don't have a dual mode switch and most of the rest of the code is gone
-
-  editorMaps = editorMaps1;
-
-  auxMap = auxMap1;
-
-  boostRequest = boostRequest1;
-
-  boostDCMax = boostDCMax1;
-
-  boostDCMin = boostDCMin1;
-
+  Serial.print(F("H"));
 }
 
 void setup_lcd() {
@@ -506,7 +505,6 @@ void calcKd() {
 }
 
 void setup() {
-  modeSelect();
   delay(1500);    // Wait for LCD to actually start up
   setup_lcd();
 
@@ -532,8 +530,6 @@ void setup() {
   pinMode(PIN_TPS, INPUT);
   pinMode(PIN_MAP, INPUT);
 
-  pinMode(PIN_TEMP2, INPUT);
-
   digitalWrite(PIN_TPS, LOW); // safety unconnected TPS
   digitalWrite(PIN_MAP, HIGH); // safety unconnected MAP
 
@@ -541,17 +537,17 @@ void setup() {
   lcd.write(0xFE);
   lcd.write(0x58);
 
-  lcd.print("Load:");
+  lcd.print(F("Load:"));
   Serial.print(F("OK, Load:"));
   if (loadFromEEPROM(false) == false) {
     Serial.print(F("invalid conf."));
-    lcd.print("INVALID CONF");
+    lcd.print(F("INVALID CONF"));
     loadDefaults();
     delay(2000);
   }
   else {
     Serial.println(F("OK"));
-    lcd.print("OK.");
+    lcd.print(F("OK."));
     delay(500);
   }
   Serial.println(F("\r\n"));
@@ -723,10 +719,11 @@ void saveToEEPROM() {
   // write control struct
   ofs += EEPROMwriteData(ofs, (byte*)&settings, sizeof(settingsStruct));
 
-  ofs += EEPROMwriteData(ofs, (byte*)&auxMap1, sizeof(auxMap1));
-  ofs += EEPROMwriteData(ofs, (byte*)&boostRequest1, sizeof(boostRequest1));
-  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMin1, sizeof(boostDCMin1));
-  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMax1, sizeof(boostDCMax1));
+  ofs += EEPROMwriteData(ofs, (byte*)&auxMap, sizeof(auxMap));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostRequest, sizeof(boostRequest));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMin, sizeof(boostDCMin));
+  ofs += EEPROMwriteData(ofs, (byte*)&boostDCMax, sizeof(boostDCMax));
+  ofs += EEPROMwriteData(ofs, (byte*)&n75precontrolMap, sizeof(n75precontrolMap));
 
   printFromFlash(ANSIclearEolAndLf);
   Serial.print(ofs, DEC);
@@ -756,10 +753,11 @@ bool loadFromEEPROM(bool force) {
   ofs = strlen(buffer);
   ofs += EEPROMreadData(ofs, (byte*)&settings, sizeof(settingsStruct));
 
-  ofs += EEPROMreadData(ofs, (byte*)&auxMap1, sizeof(auxMap1));
-  ofs += EEPROMreadData(ofs, (byte*)&boostRequest1, sizeof(boostRequest1));
-  ofs += EEPROMreadData(ofs, (byte*)&boostDCMin1, sizeof(boostDCMin1));
-  ofs += EEPROMreadData(ofs, (byte*)&boostDCMax1, sizeof(boostDCMax1));
+  ofs += EEPROMreadData(ofs, (byte*)&auxMap, sizeof(auxMap));
+  ofs += EEPROMreadData(ofs, (byte*)&boostRequest, sizeof(boostRequest));
+  ofs += EEPROMreadData(ofs, (byte*)&boostDCMin, sizeof(boostDCMin));
+  ofs += EEPROMreadData(ofs, (byte*)&boostDCMax, sizeof(boostDCMax));
+  ofs += EEPROMreadData(ofs, (byte*)&n75precontrolMap, sizeof(n75precontrolMap));
 
   return true;
 }
@@ -771,11 +769,6 @@ int toKpaMAP(int raw) {
 
 int toKpaEMP(int raw) {
   return raw * EMP_SCALING_KPA;
-}
-
-int toVoltage(int raw) {
-  // mVolt
-  return int(raw * 19.608);
 }
 
 int toRpm(int raw) {
@@ -1175,25 +1168,25 @@ void pageExport(char key) {
     printFromFlash(exportVntMap);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AA"));
-    for (int i = 0; i < sizeof(boostRequest1); i++) {
+    for (int i = 0; i < sizeof(boostRequest); i++) {
       if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostRequest1));
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostRequest));
       if (v < 16)
         Serial.print(F("0"));
       Serial.print(v, HEX);
     }
-    Serial.print("!");
+    Serial.print(F("!"));
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
     printFromFlash(exportBoostDCMax);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AB"));
-    for (int i = 0; i < sizeof(boostDCMax1); i++) {
+    for (int i = 0; i < sizeof(boostDCMax); i++) {
       if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMax1));
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMax));
       if (v < 16)
         Serial.print(F("0"));
       Serial.print(v, HEX);
@@ -1205,25 +1198,25 @@ void pageExport(char key) {
     printFromFlash(exportBoostDCMin);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AC"));
-    for (int i = 0; i < sizeof(boostDCMin1); i++) {
+    for (int i = 0; i < sizeof(boostDCMin); i++) {
       if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMin1));
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&boostDCMin));
       if (v < 16)
         Serial.print(F("0"));
       Serial.print(v, HEX);
     }
-    Serial.print("!");
+    Serial.print(F("!"));
     printFromFlash(ANSIclearEolAndLf);
     printFromFlash(ANSIclearEolAndLf);
 
     printFromFlash(exportLdaMap);
     printFromFlash(ANSIclearEolAndLf);
     Serial.print(F("!AD"));
-    for (int i = 0; i < sizeof(auxMap1); i++) {
+    for (int i = 0; i < sizeof(auxMap); i++) {
       if (i && i % 16 == 0)
         printFromFlash(ANSIclearEolAndLf);
-      unsigned char v = (unsigned char) * (i + ((unsigned char*)&auxMap1));
+      unsigned char v = (unsigned char) * (i + ((unsigned char*)&auxMap));
       if (v < 16)
         Serial.print(F("0"));
       Serial.print(v, HEX);
@@ -1261,6 +1254,8 @@ void pageDataLogger(char key) {
   Serial.print(F(","));
   Serial.print(controls.pidOutput, DEC);
   Serial.print(F(","));
+  Serial.print(controls.n75precontrol, DEC);
+  Serial.print(F(","));
   Serial.print(controls.mode, DEC);
   Serial.print(F(","));
   Serial.print(controls.auxOutput, DEC);
@@ -1288,10 +1283,6 @@ void printMapAxis(unsigned char axisType, unsigned char idx, bool verbose) {
     case MAP_AXIS_KPA:
       Serial.print(toKpaMAP(idx), DEC);
       if (verbose) Serial.print(F(" kPa"));
-      break;
-    case MAP_AXIS_VOLTAGE:
-      Serial.print(toVoltage(idx), DEC);
-      if (verbose) Serial.print(F(" mV"));
       break;
     case MAP_AXIS_CELSIUS:
       Serial.print(idx - 64, DEC);
@@ -1669,16 +1660,16 @@ void readValuesTps() {
 }
 
 void readValuesMap() {
- 
+
   mapAvg.pos++;
-  if (mapAvg.pos>=mapAvg.size)
-    mapAvg.pos=0;
+  if (mapAvg.pos >= mapAvg.size)
+    mapAvg.pos = 0;
 
   map_read.update();
   mapAvg.avgData[mapAvg.pos] = map_read.getValue();
-  
+
   controls.mapInput = getFilteredAverage(&mapAvg);
-  
+
 }
 
 void readValuesEgt() {
@@ -1703,41 +1694,47 @@ void readValuesEgt() {
 
 void processValues() {
 
-  unsigned long now = millis();
-  int timeChange = now - controls.lastTime;
+  #define inputSpan 255.0;
 
   static float error;
   static float integral;
   static float derivative;
 
-  float controlSpan;
-  float inputSpan;
-
   float scaledInput;
   float scaledTarget;
-  float scaledBias;
 
   float minControl;
   float maxControl;
 
   float toControlVNT;
+  controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
+  controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
+  controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
 
   controls.vntMaxDc = mapLookUp(boostDCMax, controls.rpmCorrected, controls.tpsCorrected);
   controls.vntMinDc = mapLookUp(boostDCMin, controls.rpmCorrected, controls.tpsCorrected);
 
-  controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
-  controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
-  controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
-  
+  controls.n75precontrol = mapLookUp(n75precontrolMap, controls.rpmCorrected, controls.tpsCorrected);
+
   controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
 
-  /* This is the available span of our DC - we can only go between min and max */
-  // controlSpan = controls.vntMaxDc - controls.vntMinDc;
-  minControl = (float)controls.vntMinDc / (float)255;
-  maxControl = (float)controls.vntMaxDc / (float)255;
+  /* Look up the requested boost */
+  controls.vntTargetPressure = mapLookUp(boostRequest, controls.rpmCorrected, controls.tpsCorrected);
 
-  /* This is the available span of our input - we can only go between 0-255 */
-  inputSpan = 255.0;
+  /* Now make the target a percentage of the same input span */
+  scaledTarget = (float)controls.vntTargetPressure / inputSpan;
+
+  /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
+  if (scaledTarget > 1.0) {
+    scaledTarget = 1.0;
+  }
+  else if (scaledTarget < 0) {
+    scaledTarget = 0;
+  }
+
+  /* This is the available span of our DC - we can only go between min and max */
+  minControl = (float)(controls.vntMinDc - controls.n75precontrol) / 255.0;
+  maxControl = (float)(controls.vntMaxDc - controls.n75precontrol) / 255.0;
 
   /* Make the input a percentage of the availble input span */
   scaledInput = (float)controls.mapCorrected / inputSpan;
@@ -1762,6 +1759,8 @@ void processValues() {
   else if (scaledInput < 0) {
     scaledInput = 0;
   }
+  
+  int timeChange = millis() - controls.lastTime;
 
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map
@@ -1780,23 +1779,9 @@ void processValues() {
     }
 
   }
-  else if ( controls.rpmActual <= settings.rpmMax ) {         // Only calculate if RPM is less than rpmMax or we start doing bad things
+  else {
     // Normal running mode
-
-    /* Look up the requested boost */
-    controls.vntTargetPressure = mapLookUp(boostRequest, controls.rpmCorrected, controls.tpsCorrected);
-
-    /* Now make the target a percentage of the same input span */
-    scaledTarget = (float)controls.vntTargetPressure / inputSpan;
-
-    /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
-    if (scaledTarget > 1.0) {
-      scaledTarget = 1.0;
-    }
-    else if (scaledTarget < 0) {
-      scaledTarget = 0;
-    }
-
+    controls.mode = 1;
     /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
     derivative = Kd * (scaledInput - controls.lastInput) / timeChange;
     controls.lastInput = scaledInput;
@@ -1804,72 +1789,14 @@ void processValues() {
     /* Since we do a bunch of comparisons with this value lets just calculate it once */
     float scaledError = scaledTarget - scaledInput;
 
-    if ( toKpaMAP(controls.mapCorrected) < spoolMinBoost && integral < preSpoolInt ) {
-      // We haven't spooled up yet - use a static value for the integral
-      // May want to add a case here for 'spooled but still at low boost'
-      controls.mode = 1;              // idling
-      integral = preSpoolInt;
-      // Still add proportional control like normal
-      error = Kp * scaledError;
-    } else {
-      // Turbo is producing pressure - now we can start actually controlling it
-      if ( derivative > rampThreshold ) {
-        // Boost is building extremely quickly, we need to take corrective action - multiply the derivative by rampFactor
-        derivative = derivative * rampFactor;
-        if (scaledError > 0) {
-          // We are below setpoint
-          if (scaledError < rampActive) {
-            // We haven't overshot yet but we are approaching setpoint. Reduce upwards momentum
-            controls.mode = 5;                 // Under but accelerating upwards rapidly
-            integral += Ki * underGain * scaledError * timeChange;
-            error = Kp * underGain * scaledError;
-          } else {
-            // We haven't overshot and we're still somewhat far from the target. We will continue as normal.
-            controls.mode = 8;                    // Normal PID
-            if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-              // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-              integral += Ki * scaledError * timeChange;
-            }
-            error = Kp * scaledError;
-          }
-        } else {
-          // We've overshot and we're still building fast, pull back hard with proportional control, chop off the integral fast
-          controls.mode = 4;                  // Overshot and still accelerating upwards
-          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-            integral += Ki * overGain * scaledError * timeChange;
-          }
-          error = Kp * scaledError;
-        }
-      } else {
-        if (-scaledError > maxPosErrorPct) {
-          //We're quite a bit over
-          controls.mode = 3;                   // Over but not steeply accelerating
-          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * overGain * scaledError * timeChange;
-          }
-          error = Kp * overGain * scaledError;
-        } else if (fabs(scaledError) < fineBand) {
-          // We're not on a steep upwards slope and we're close to the setpoint. Switch to fine control mode.
-          controls.mode = 7;
-          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-            integral += Ki * scaledError * timeChange;
-          }
-          error = Kp * scaledError;  // no more fine gain - * fineGain
-          derivative = fineGain * derivative;
-        } else {
-          // We are spooled but everything is normal; we can use normal PID
-          controls.mode = 2;                    // Normal PID
-          if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-            // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-            integral += Ki * scaledError * timeChange;
-          }
-          error = Kp * scaledError;
-        }
-      }
+// FIXME: This is wrong....
+    if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
+      // If we are at the upper or lower limit then don't integrate, otherwise go ahead
+      integral += Ki * scaledError * timeChange;
     }
+    error = Kp * scaledError;
 
-    /* Can't have a value below zero... */
+    /* Integral must be inside the control range... */
     if ( integral < minControl ) {
       integral = minControl;
     } else if ( integral > maxControl ) {
@@ -1887,20 +1814,12 @@ void processValues() {
 
     /* PID Output */
     controls.pidOutput = error + integral - derivative;
-
   }
-  else {
-    // We must be over max RPM, open the vanes!
-    controls.pidOutput = minControl;
-  }
-
-
-  // Count the time we spent processing
-  controls.lastTime = now;
 
   /* If our loop goes over 100% or under 0% weird things happen!*/
   if (controls.pidOutput > maxControl) {
     controls.pidOutput = maxControl;
+// FIXME: This is wrong too... 
     integral = maxControl - error + derivative;
   }
   else if (controls.pidOutput < minControl) {
@@ -1910,8 +1829,8 @@ void processValues() {
   controls.prevPidOutput = controls.pidOutput;
 
   toControlVNT = controls.pidOutput * 255;
-  
-  controls.vntPositionDC = toControlVNT;
+
+  controls.vntPositionDC = toControlVNT + controls.n75precontrol;
 
   /* This loop should never ever be true - a 100% output should be diff between min and max + min which should equal max
     but I'm not quite ready to remove this */
@@ -1932,6 +1851,9 @@ void processValues() {
   else {
     controls.vntPositionRemapped = finalPos;
   }
+  
+  // Include the time we spent processing
+  controls.lastTime = millis();
 }
 
 void updateOutputValues(bool showDebug) {
@@ -2059,7 +1981,7 @@ void printn_lcd(int lcdnumber, int lcddigits) {
   }
   int i;
   for (i = 0; i < padding; i++) {
-    lcd.print("0");
+    lcd.print(F("0"));
   }
   lcd.print(lcdnumber);
 }
@@ -2127,8 +2049,8 @@ void loop() {
     readValuesEgt();
     execTimeRead = millis() - execTimeRead;
 
-    
-    execTimeAct = millis(); 
+
+    execTimeAct = millis();
     // We will actually process our values and change actuators every EXEC_DELAY milliseconds
     if (freezeModeEnabled) {
       Serial.print(F("\rFREEZE "));
