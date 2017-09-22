@@ -171,21 +171,21 @@ unsigned char boostDCMax[] = {
   200, 200, 200, 200, 200, 200, 200, 80,
   200, 200, 200, 200, 200, 200, 200, 80,
   200, 200, 200, 200, 200, 200, 200, 80,
-  200, 185, 180, 180, 180, 180, 180, 80,
-  200, 185, 180, 180, 180, 180, 180, 80,
-  200, 185, 180, 180, 180, 180, 180, 80,
+  200, 195, 195, 195, 180, 180, 180, 80,
+  200, 185, 185, 180, 180, 180, 180, 80,
+  200, 185, 185, 180, 180, 180, 180, 80,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMin[] = {
   'M', '2', 'D',
   0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 60, 130, 130, 130, 130, 130, 60,
-  0, 130, 130, 130, 130, 130, 130, 60,
-  0, 130, 130, 130, 130, 130, 130, 60,
-  0, 130, 130, 130, 130, 130, 130, 60,
-  0, 130, 130, 130, 130, 130, 130, 60,
-  0, 130, 130, 130, 130, 130, 130, 60,
+  0, 60, 130, 130, 120, 120, 120, 60,
+  0, 130, 130, 130, 120, 120, 120, 60,
+  0, 130, 130, 130, 120, 120, 120, 60,
+  0, 130, 130, 130, 120, 120, 120, 60,
+  0, 130, 130, 130, 120, 120, 120, 60,
+  0, 130, 130, 130, 120, 120, 120, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
@@ -197,17 +197,17 @@ unsigned char boostDCMin[] = {
 unsigned char n75precontrolMap[] = {
   'M', '2', 'D',
   0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 0, 180, 180, 180, 180, 180, 180,
-  0, 180, 180, 180, 180, 180, 180, 180,
-  0, 180, 180, 180, 180, 180, 180, 180,
-  0, 150, 150, 150, 150, 150, 150, 150,
-  0, 150, 150, 150, 150, 150, 150, 150,
-  0, 150, 150, 150, 150, 150, 150, 150,
-  0, 150, 150, 150, 150, 150, 150, 150,
-  0, 160, 160, 160, 160, 160, 160, 160,
-  0, 160, 160, 160, 160, 160, 160, 160,
-  0, 180, 180, 160, 160, 150, 150, 120,
-  0, 180, 180, 160, 160, 150, 150, 120,
+  0, 180, 180, 160, 160, 160, 160, 70,
+  0, 180, 180, 170, 150, 150, 150, 70,
+  0, 180, 180, 170, 150, 150, 150, 70,
+  0, 150, 170, 165, 160, 150, 150, 70,
+  0, 150, 185, 165, 160, 150, 150, 70,
+  0, 150, 195, 165, 160, 150, 150, 70,
+  0, 150, 195, 165, 160, 150, 150, 70,
+  0, 160, 195, 165, 150, 150, 150, 70,
+  0, 160, 190, 165, 150, 150, 150, 70,
+  0, 180, 180, 150, 150, 140, 140, 70,
+  0, 180, 180, 150, 140, 140, 140, 70,
   00, 00, 00,              // lastX,lastY,lastRet
 };
 
@@ -235,7 +235,6 @@ struct settingsStruct {
   int boostKp;
   int boostKi;
   int boostKd;
-  int boostBias;
 };
 
 settingsStruct settings;
@@ -495,7 +494,7 @@ void setup_lcd() {
   lcd.write(0x48);
   delay(10);   // we suggest putting delays after each command
 
-  vntPid.SetMode(AUTOMATIC);
+  vntPid.SetSampleTime(100);
 }
 
 void calcKp() {
@@ -584,10 +583,9 @@ void loadDefaults() {
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.options = 0;
-  settings.boostKp = 30;
-  settings.boostKi = 22;
-  settings.boostKd = 35;
-  settings.boostBias = 10;
+  settings.boostKp = 0;
+  settings.boostKi = 0;
+  settings.boostKd = 0;
 }
 
 
@@ -1513,7 +1511,6 @@ const unsigned char ServoOutputDC[] PROGMEM = "N75 Duty Cycle:";
 const unsigned char ServoFineTuneP[] PROGMEM = "PID Kp:";
 const unsigned char ServoFineTuneI[] PROGMEM = "PID Ki:";
 const unsigned char ServoFineTuneD[] PROGMEM = "PID Kd:";
-const unsigned char ServoFineTuneBias[] PROGMEM = "PID Bias (10 default):";
 
 void visualizeActuator(char y) {
   gotoXY(1, y);
@@ -1563,14 +1560,6 @@ void pageServoFineTune(char key) {
       if (settings.boostKd < 255) settings.boostKd++;
       calcKd();
       break;
-
-    case 'b':
-      if (settings.boostBias > 0) settings.boostBias--;
-      break;
-    case 'B':
-      if (settings.boostBias < 50) settings.boostBias++;
-      break;
-
     case 'y':
       saveToEEPROM();
       break;
@@ -1629,10 +1618,6 @@ void pageServoFineTune(char key) {
   Serial.print(F(")"));
   printFromFlash(ANSIclearEolAndLf);
 
-  printStringWithPadding(ServoFineTuneBias, 25, ' ');
-  printPads(1, ' ');
-  printIntWithPadding(settings.boostBias, 3, '0');
-  Serial.print(F(" B"));
   printFromFlash(ANSIclearEolAndLf);
 
   printFromFlash(ANSIclearEos);
@@ -1734,6 +1719,7 @@ void controlVNT() {
   maxControl = controls.vntMaxDc - controls.n75precontrol;  // this will be a positive number
 
   vntPid.SetOutputLimits(minControl, maxControl);
+  vntPid.SetTunings(Kp, Ki, Kd);
 
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map
