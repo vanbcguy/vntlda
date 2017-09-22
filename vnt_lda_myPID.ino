@@ -1105,14 +1105,14 @@ void pageOutputTests(char key) {
       case 'q':
       case 'Q':
         controls.vntPositionRemapped = 0;
-        updateOutputValues(true);
+        updateOutputValues();
         updateLCD();
         delay(2000);
         break;
       case 'w':
       case 'W':
         controls.vntPositionRemapped = 255;
-        updateOutputValues(true);
+        updateOutputValues();
         updateLCD();
         delay(2000);
         break;
@@ -1121,14 +1121,14 @@ void pageOutputTests(char key) {
         for (controls.vntPositionRemapped = 0;
              controls.vntPositionRemapped < 255;
              controls.vntPositionRemapped++) {
-          updateOutputValues(true);
+          updateOutputValues();
           updateLCD();
           delay(20);
         }
         for (controls.vntPositionRemapped = 255;
              controls.vntPositionRemapped > 0;
              controls.vntPositionRemapped--) {
-          updateOutputValues(true);
+          updateOutputValues();
           updateLCD();
           delay(20);
         }
@@ -1715,8 +1715,8 @@ void controlVNT() {
   double minControl;
   double maxControl;
 
-  float toControlVNT;
-  
+  double toControlVNT;
+
   controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
   controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
   controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
@@ -1735,27 +1735,26 @@ void controlVNT() {
 
   vntPid.SetOutputLimits(minControl, maxControl);
 
-  int timeChange = millis() - controls.lastTime;
-
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map
 
     controls.vntTargetPressure = 0;                    // Display zero target pressure on the LCD at idle
     controls.mode = 0;                                 // System status = idling
+    controls.pidOutput = 0;
 
     vntPid.SetMode(MANUAL);                            // Disable PID controller at idle
 
     if (settings.options & OPTIONS_VANESOPENIDLE) {
-      controls.pidOutput = minControl;                 // Final output is zero - we aren't trying to do anything
+      toControlVNT = minControl;
     } else {
-      controls.pidOutput = maxControl;                 // Set to whatever the max on the map is
+      toControlVNT = maxControl;
     }
 
   }
   else {
     // Normal running mode
     controls.mode = 1;
-    
+
     vntPid.SetMode(AUTOMATIC);
 
     vntPid.Compute();
@@ -1787,7 +1786,7 @@ void controlVNT() {
   else {
     controls.vntPositionRemapped = finalPos;
   }
-  
+
   // Include the time we spent processing
   controls.lastTime = millis();
 }
@@ -1798,7 +1797,7 @@ void controlEGT() {
   controls.auxOutput = mapLookUp(auxMap, controls.rpmCorrected, controls.egtCorrected);
 }
 
-void updateOutputValues(bool showDebug) {
+void updateOutputValues() {
   // PWM output pins
   analogWrite(PIN_VNT_N75, controls.vntPositionRemapped);
   analogWrite(PIN_AUX_N75, controls.auxOutput);
@@ -1818,7 +1817,6 @@ void layoutLCD() {
 }
 
 
-byte egtState = 0;
 byte lcdFlipFlop = 0;
 
 void updateLCD() {
@@ -1848,7 +1846,6 @@ void updateLCD() {
   }
 
   if (controls.temp1 < EGT_COOL) {
-    if (egtState != 1);
     {
       // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
@@ -1857,11 +1854,9 @@ void updateLCD() {
       lcd.write((uint8_t)0);
       lcd.write(50);
       lcd.write(255);
-      egtState = 1;
     }
   }
   else if (controls.temp1 < EGT_WARN) {
-    if (egtState != 2);
     {
       // Make the screen green if it isn't already
       // set background colour - r/g/b 0-255
@@ -1870,11 +1865,9 @@ void updateLCD() {
       lcd.write(64);
       lcd.write(255);
       lcd.write((uint8_t)0);
-      egtState = 2;
     }
   }
   else if (controls.temp1 < EGT_ALARM) {
-    if (egtState != 3);
     {
       // Make the screen orange if it isn't already
       lcd.write(0xFE);
@@ -1882,11 +1875,9 @@ void updateLCD() {
       lcd.write(255);
       lcd.write(32);
       lcd.write((uint8_t)0);
-      egtState = 3;
     }
   }
   else {
-    if (egtState != 4);
     {
       // Make the screen red if it isn't already
       lcd.write(0xFE);
@@ -1894,7 +1885,6 @@ void updateLCD() {
       lcd.write(255);
       lcd.write((uint8_t)0);
       lcd.write((uint8_t)0);
-      egtState = 4;
     }
   }
 }
@@ -2003,7 +1993,7 @@ void loop() {
       determineIdle();
       controlVNT();
       controlEGT();
-      updateOutputValues(false);
+      updateOutputValues();
     }
     execLoop = millis();
     execTimeAct = execLoop - execTimeAct;
