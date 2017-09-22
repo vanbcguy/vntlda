@@ -17,6 +17,7 @@
 #include <SPI.h>
 #include <MAX31855.h>    // Use library written for a faster read time - https://github.com/engineertype/MAX31855
 #include <ResponsiveAnalogRead.h>
+#include <PID_v1.h>
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -245,7 +246,7 @@ struct controlsStruct {
   volatile int tpsInput;
   unsigned char tpsCorrected;
   volatile int mapInput;
-  unsigned char mapCorrected;
+  double mapCorrected;
   volatile int egtInput;
   unsigned char egtCorrected;
   volatile int empInput;
@@ -254,7 +255,7 @@ struct controlsStruct {
 
   // outputs
 
-  unsigned char vntTargetPressure;
+  double vntTargetPressure;
   unsigned char vntPositionRemapped;
   unsigned char vntPositionDC;
   int vntMinDc;
@@ -275,14 +276,22 @@ struct controlsStruct {
   float boostCalculatedI;
   float boostCalculatedD;
 
-  float pidOutput;
-  float prevPidOutput;
+  double pidOutput;
+  double prevPidOutput;
 
   unsigned long lastTime;
   float lastInput;
 };
 
 controlsStruct controls;
+
+
+double Kp;
+double Ki;
+double Kd;
+
+// set up VNT PID control
+PID vntPid(&controls.mapCorrected, &controls.pidOutput, &controls.vntTargetPressure, Kp, Ki, Kd, P_ON_M, DIRECT);
 
 struct avgStruct {
   unsigned char pos;
@@ -485,12 +494,9 @@ void setup_lcd() {
   lcd.write(0xFE);
   lcd.write(0x48);
   delay(10);   // we suggest putting delays after each command
+
+  vntPid.SetMode(AUTOMATIC);
 }
-
-
-float Kp;
-float Ki;
-float Kd;
 
 void calcKp() {
   Kp = (float)(settings.boostKp) / PIDControlRatio;
@@ -1692,56 +1698,7 @@ void readValuesEgt() {
 
 }
 
-void processValues() {
-
-  #define inputSpan 255.0;
-
-  static float error;
-  static float integral;
-  static float derivative;
-
-  float scaledInput;
-  float scaledTarget;
-
-  float minControl;
-  float maxControl;
-
-  float toControlVNT;
-  controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
-  controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
-  controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
-
-  controls.vntMaxDc = mapLookUp(boostDCMax, controls.rpmCorrected, controls.tpsCorrected);
-  controls.vntMinDc = mapLookUp(boostDCMin, controls.rpmCorrected, controls.tpsCorrected);
-
-  controls.n75precontrol = mapLookUp(n75precontrolMap, controls.rpmCorrected, controls.tpsCorrected);
-
-  controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
-
-  /* Look up the requested boost */
-  controls.vntTargetPressure = mapLookUp(boostRequest, controls.rpmCorrected, controls.tpsCorrected);
-
-  /* Now make the target a percentage of the same input span */
-  scaledTarget = (float)controls.vntTargetPressure / inputSpan;
-
-  /* It should not be possible to have >100% or <0% targets but hey, let's be sure */
-  if (scaledTarget > 1.0) {
-    scaledTarget = 1.0;
-  }
-  else if (scaledTarget < 0) {
-    scaledTarget = 0;
-  }
-
-  /* This is the available span of our DC - we can only go between min and max */
-  minControl = (float)(controls.vntMinDc - controls.n75precontrol) / 255.0;
-  maxControl = (float)(controls.vntMaxDc - controls.n75precontrol) / 255.0;
-
-  /* Make the input a percentage of the availble input span */
-  scaledInput = (float)controls.mapCorrected / inputSpan;
-
-  // EGT controls
-  controls.auxOutput = mapLookUp(auxMap, controls.rpmCorrected, controls.egtCorrected);
-
+void determineIdle() {
   if ( controls.tpsCorrected > 0 ) {
     controls.idling = false;
   }
@@ -1751,26 +1708,42 @@ void processValues() {
   else {
     controls.idling = false;                         // Most likely coasting right now; continue proportional behavior
   }
+}
 
-  // Ensure inputs are valid
-  if (scaledInput > 1.0) {
-    scaledInput = 1.0;
-  }
-  else if (scaledInput < 0) {
-    scaledInput = 0;
-  }
+void controlVNT() {
+
+  double minControl;
+  double maxControl;
+
+  float toControlVNT;
   
+  controls.rpmCorrected = mapValues(controls.rpmActual, 0, settings.rpmMax);
+  controls.mapCorrected = mapValues(controls.mapInput, settings.mapMin, settings.mapMax);
+  controls.tpsCorrected = mapValues(controls.tpsInput, settings.tpsMin, settings.tpsMax);
+
+  controls.vntMaxDc = mapLookUp(boostDCMax, controls.rpmCorrected, controls.tpsCorrected);
+  controls.vntMinDc = mapLookUp(boostDCMin, controls.rpmCorrected, controls.tpsCorrected);
+
+  controls.n75precontrol = mapLookUp(n75precontrolMap, controls.rpmCorrected, controls.tpsCorrected);
+
+  /* Look up the requested boost */
+  controls.vntTargetPressure = mapLookUp(boostRequest, controls.rpmCorrected, controls.tpsCorrected);
+
+  /* This is the available span of our DC - we can only go between min and max */
+  minControl = controls.vntMinDc - controls.n75precontrol;  // this will be a negative number
+  maxControl = controls.vntMaxDc - controls.n75precontrol;  // this will be a positive number
+
+  vntPid.SetOutputLimits(minControl, maxControl);
+
   int timeChange = millis() - controls.lastTime;
 
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map
 
     controls.vntTargetPressure = 0;                    // Display zero target pressure on the LCD at idle
-    controls.lastInput = scaledInput;                  // Keep the derivative loop primed
-    integral = 0;                                      // Only you can prevent integral windup at idle
-    error = 0;                                         // Not strictly necessary but it keeps my ADD in check on the datalogs
-    derivative = 0;                                      // See above
     controls.mode = 0;                                 // System status = idling
+
+    vntPid.SetMode(MANUAL);                            // Disable PID controller at idle
 
     if (settings.options & OPTIONS_VANESOPENIDLE) {
       controls.pidOutput = minControl;                 // Final output is zero - we aren't trying to do anything
@@ -1782,55 +1755,18 @@ void processValues() {
   else {
     // Normal running mode
     controls.mode = 1;
-    /* Determine the slope of the signal - we need to know this to determine everything else we want to do */
-    derivative = Kd * (scaledInput - controls.lastInput) / timeChange;
-    controls.lastInput = scaledInput;
+    
+    vntPid.SetMode(AUTOMATIC);
 
-    /* Since we do a bunch of comparisons with this value lets just calculate it once */
-    float scaledError = scaledTarget - scaledInput;
+    vntPid.Compute();
 
-// FIXME: This is wrong....
-    if (!(controls.prevPidOutput >= maxControl && error > 0) && !(controls.prevPidOutput <= minControl && error < 0)) {
-      // If we are at the upper or lower limit then don't integrate, otherwise go ahead
-      integral += Ki * scaledError * timeChange;
-    }
-    error = Kp * scaledError;
-
-    /* Integral must be inside the control range... */
-    if ( integral < minControl ) {
-      integral = minControl;
-    } else if ( integral > maxControl ) {
-      integral = maxControl;
-    }
-
-    /* We can bias the signal when requesting boost - do we want boost to come on faster or slower */
-    if (error > 0) {
-      error = (error * (float)settings.boostBias) / 10;
-    }
-    else if ((error < 0) && (scaledInput > PIDMaxBoost)) {
-      controls.mode = 6;              // We're in emergency pullback mode
-      error = (error * 2);        // If we are over PIDMaxBoost% then double the proportional response to pulling off boost - turbo saver
-    }
-
-    /* PID Output */
-    controls.pidOutput = error + integral - derivative;
-  }
-
-  /* If our loop goes over 100% or under 0% weird things happen!*/
-  if (controls.pidOutput > maxControl) {
-    controls.pidOutput = maxControl;
-// FIXME: This is wrong too... 
-    integral = maxControl - error + derivative;
-  }
-  else if (controls.pidOutput < minControl) {
-    controls.pidOutput = minControl;
   }
 
   controls.prevPidOutput = controls.pidOutput;
 
-  toControlVNT = controls.pidOutput * 255;
+  toControlVNT = controls.pidOutput + controls.n75precontrol;
 
-  controls.vntPositionDC = toControlVNT + controls.n75precontrol;
+  controls.vntPositionDC = toControlVNT;
 
   /* This loop should never ever be true - a 100% output should be diff between min and max + min which should equal max
     but I'm not quite ready to remove this */
@@ -1838,9 +1774,9 @@ void processValues() {
     controls.vntPositionDC = controls.vntMaxDc;
 
   /* Display these as real numbers - will make the logs more useful as we can try different values */
-  controls.boostCalculatedP = (error);
-  controls.boostCalculatedI = (integral);
-  controls.boostCalculatedD = (derivative);
+  controls.boostCalculatedP = vntPid.GetKp();
+  controls.boostCalculatedI = vntPid.GetKi();
+  controls.boostCalculatedD = vntPid.GetKd();
 
   unsigned char finalPos;
   finalPos = controls.vntPositionDC;
@@ -1854,6 +1790,12 @@ void processValues() {
   
   // Include the time we spent processing
   controls.lastTime = millis();
+}
+
+void controlEGT() {
+  // EGT controls
+  controls.egtCorrected = mapValues(controls.temp1, settings.egtMin, settings.egtMax);
+  controls.auxOutput = mapLookUp(auxMap, controls.rpmCorrected, controls.egtCorrected);
 }
 
 void updateOutputValues(bool showDebug) {
@@ -2058,7 +2000,9 @@ void loop() {
     else {
       // update output values according to input
       calcRpm();
-      processValues();
+      determineIdle();
+      controlVNT();
+      controlEGT();
       updateOutputValues(false);
     }
     execLoop = millis();
