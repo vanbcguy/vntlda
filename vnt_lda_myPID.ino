@@ -19,6 +19,9 @@
 #include <ResponsiveAnalogRead.h>
 #include <PID_v1.h>
 
+// Also used in NVRAM data store magic header
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.1";
+
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
 
@@ -64,44 +67,15 @@ MAX31855 temp(doPin, csPin, clPin );
   or if you need to have large multipliers then decrease this */
 #define PIDControlRatio 50
 
-/* Help reduce overshoot by increasing the falloff rate of the integral when we have a large error.  Whenever the positive error (overboost) exceeds this
-  value the integral gain will be doubled causing the integral to decrease faster. */
-#define maxPosErrorPct 0.10
-
-/* If your turbo boosts higher than your sensor then the system will not be able to respond in a proportional manner.  If boost is higher than
-  PIDMaxBoost% then the controller will double the proportional response to reduce boost faster.  This value is a percentage so it should be
-  fine with different sensors and boost ranges - the value is "% of the maximum value of your sensor" so 0.95 * 250kPa = 238kPa for a 2.5 bar
-  sensor. */
-#define PIDMaxBoost 0.95
-
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
   a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
 #define rpmResolution 30
-
-/* If boost is below spoolMinBoost then the turbo hasn't spooled yet - we don't start integrating till we see some signs of life otherwise we
-  get all wound up.  preSpoolInt is a static value that the system will use till we see enough boost to start actually controlling things. */
-#define preSpoolInt 0.75
-#define spoolMinBoost 10 // kpa
-
-/* Overshoot reduction - when we have a steep upwards slope and we're approaching the setpoint we'll start hacking away at the integral early */
-#define rampThreshold 0.025
-#define rampFactor 1.0  // currently disabled - seeing excessive pullback
-#define rampActive 0.20 // kPa value divided by max to yield percentage
-
-/* More overshoot reduction - when we have a steep upwards slope but we're below setpoint multiply Kp by underGain.  When we're over then use
-   overGain */
-#define underGain 0.8
-#define overGain 1.05
-
-/* Fine control ratios */
-#define fineBand 0.03
-#define fineGain 0.9
-
 
 // Set loop delay times
 #define SERIAL_DELAY 107 // ms
 #define EXEC_DELAY 50 //ms
 #define DISPLAY_DELAY 250 // ms
+#define MAP_DELAY 10 //ms
 
 
 // Calculate Average values
@@ -115,8 +89,6 @@ MAX31855 temp(doPin, csPin, clPin );
 #define MAP_AXIS_DUTY_CYCLE 0xAC
 #define MAP_AXIS_RAW 0x0
 #define MAP_AXIS_EGT 0xAE
-
-// unsigned char *auxMap, *boostRequest, *boostDCMax, *boostDCMin, *n75precontrolMap;
 
 /*
   MAP format:
@@ -211,8 +183,6 @@ unsigned char n75precontrolMap[] = {
   00, 00, 00,              // lastX,lastY,lastRet
 };
 
-// Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.";
 const unsigned char statusString1[] PROGMEM  = " Active view: ";
 
 #define OPTIONS_VANESOPENIDLE 1
@@ -306,12 +276,12 @@ const unsigned char mapVisualitionHelp[] PROGMEM  = "Top Left is 0,0 (press: L -
 
 unsigned char page = 0;
 const char *pages[] = {
-  "About", "Adaptation", "Actuator Fine-tune", "Edit map: boostRequest", "Edit map: boostDCMin", "Edit map: boostDCMax", "Edit map: Aux. device PWM map", "Output Tests"
+  "About", "Adaptation", "Actuator Fine-tune", "Edit map: boostRequest", "Edit map: boostDCMin", "Edit map: boostDCMax", "Edit map: n75preControl", "Edit map: Aux. device PWM map", "Output Tests"
 };
 
-unsigned char **editorMaps;
-unsigned char *editorMaps1[] = {
-  boostRequest, boostDCMin, boostDCMax, auxMap, n75precontrolMap
+//unsigned char **editorMaps;
+unsigned char *editorMaps[] = {
+  boostRequest, boostDCMin, boostDCMax, n75precontrolMap, auxMap
 };
 
 unsigned char clearScreen[] =  {
@@ -1928,8 +1898,12 @@ void displayPage(char page, char data) {
       break;
     case 6:
       pageMapEditor(3, data);
+      visualizeActuator(28);
       break;
     case 7:
+      pageMapEditor(4, data);
+      break;
+    case 8:
       pageOutputTests(data);
       visualizeActuator(28);
       break;
@@ -1950,13 +1924,16 @@ bool freezeModeEnabled = false;
 unsigned long serialLoop = 0;
 unsigned long execLoop = 0;
 unsigned long displayLoop = 0;
+unsigned long mapLoop = 0;
 
 
 void loop() {
 
   static char lastPage;
-
-  readValuesMap();  // Read every loop; we're calculating an average to clean up noise.
+  if ((millis() - mapLoop) >= MAP_DELAY) {
+    readValuesMap();  // Read every loop; we're calculating an average to clean up noise.
+    mapLoop = millis();
+  }
 
   /* Actual execution will happen every EXEC_DELAY - this is where we do our actual calculations */
   if ((millis() - execLoop) >= EXEC_DELAY) {
