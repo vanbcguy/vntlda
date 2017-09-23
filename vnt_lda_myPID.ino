@@ -126,9 +126,9 @@ unsigned char boostRequest[] = {
   0, 83, 83, 83, 83, 83, 83, 83, 83, 80,
   0, 83, 83, 83, 83, 83, 83, 83, 83, 90,
   0, 83, 100, 100, 100, 100, 100, 100, 100, 90,
-  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
-  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
-  0, 50, 85, 190, 185, 200, 200, 200, 200, 90,
+  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
+  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
+  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
@@ -546,7 +546,8 @@ void setup() {
 void loadDefaults() {
   memset(&settings, 0, sizeof(settingsStruct));
   settings.tpsMax = 1023;
-  settings.mapMax = 1023;
+  settings.mapMin = 55;
+  settings.mapMax = 975;
   settings.empMax = 1023;
   settings.egtMax = EGT_ALARM;
   settings.egtMin = 0;
