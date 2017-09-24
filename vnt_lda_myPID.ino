@@ -260,7 +260,7 @@ double Ki;
 double Kd;
 
 // set up VNT PID control
-PID vntPid(&controls.mapCorrected, &controls.pidOutput, &controls.vntTargetPressure, Kp, Ki, Kd, P_ON_M, DIRECT);
+PID vntPid(&controls.mapCorrected, &controls.pidOutput, &controls.vntTargetPressure, Kp, Ki, Kd, P_ON_E,DIRECT);
 
 struct avgStruct {
   unsigned char pos;
