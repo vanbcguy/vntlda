@@ -472,11 +472,11 @@ void calcKp() {
 }
 
 void calcKi() {
-  Ki = (float)(settings.boostKi) / (PIDControlRatio * 500);
+  Ki = (float)(settings.boostKi) / PIDControlRatio;
 }
 
 void calcKd() {
-  Kd = (float)(settings.boostKd * 100) / PIDControlRatio;
+  Kd = (float)(settings.boostKd) / PIDControlRatio;
 }
 
 void setup() {
