@@ -389,7 +389,7 @@ void calcRpm() {
     rpmMicros = micros();
     teethNo = 0;
 
-    attachInterrupt(0, rpmTrigger, RISING); // back to the daily grind
+    attachInterrupt(0, rpmTrigger, FALLING); // back to the daily grind
 
     // controls.rpmActual = (rpmSmoothing * rpm) + ((1.0-rpmSmoothing)*controls.rpmActual);
 
@@ -494,7 +494,7 @@ void setup() {
   pinMode(PIN_RPM_TRIGGER, INPUT); // Reset switch
   digitalWrite(PIN_RPM_TRIGGER, HIGH); // pullup for honeywell
 
-  attachInterrupt(0, rpmTrigger, RISING); // or rising!
+  attachInterrupt(0, rpmTrigger, FALLING); // or rising!
 
   setPwmFrequency(PIN_VNT_N75, 128); // was 1024
   setPwmFrequency(PIN_AUX_N75, 128); // was 1024
