@@ -58,6 +58,7 @@ MAX31855 temp(doPin, csPin, clPin );
 #define EGT_MAX_READ 1101
 
 #define IDLE_MAX_RPM 1150
+#define MIN_BOOST_SPOOLED 10 // kPa
 
 /* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
 #define MAP_SCALING_KPA 0.977
@@ -1708,6 +1709,15 @@ void controlVNT() {
       toControlVNT = maxControl;
     }
 
+  }
+  else if (controls.mapCorrected <= MIN_BOOST_SPOOLED) {
+    // If the turbo hasn't spooled up yet we're going to end up winding up the control loop; the precontrol map
+    // should be more than sufficient to get things spinning
+    
+    controls.mode = 2;                                // We haven't spooled, don't start PID yet
+    controls.pidOutput = 0;
+
+    vntPid.SetMode(MANUAL);
   }
   else {
     // Normal running mode
