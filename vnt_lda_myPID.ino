@@ -65,7 +65,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 /* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
   or if you need to have large multipliers then decrease this */
-#define PIDControlRatio 50
+#define PIDControlRatio 100
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
   a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
