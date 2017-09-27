@@ -20,7 +20,7 @@
 #include <PID_v1.h>
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.3";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.5";
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -119,17 +119,17 @@ unsigned char auxMap[] = {
 unsigned char boostRequest[] = {
   'M', '2', 'D',
   0xA, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_KPA, // 01 - new version
-  0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
-  0, 20, 20, 20, 20, 20, 20, 20, 20, 20,
-  0, 40, 40, 40, 40, 40, 40, 40, 40, 20,
-  0, 65, 65, 65, 65, 65, 65, 65, 65, 40,
-  0, 65, 65, 65, 65, 65, 65, 65, 65, 40,
-  0, 83, 83, 83, 83, 83, 83, 83, 83, 80,
-  0, 83, 83, 83, 83, 83, 83, 83, 83, 90,
-  0, 83, 100, 100, 100, 100, 100, 100, 100, 90,
-  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
-  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
-  0, 90, 120, 190, 190, 200, 200, 200, 200, 90,
+  0, 20, 25, 30, 35, 40, 40, 40, 30, 20,
+  0, 20, 35, 45, 50, 55, 55, 55, 50, 30,
+  0, 30, 40, 50, 60, 70, 75, 75, 65, 45,
+  0, 40, 50, 60, 70, 80, 90, 90, 85, 60,
+  0, 50, 65, 75, 85, 100, 110, 115, 110, 70,
+  0, 60, 70, 85, 105, 120, 130, 135, 130, 80,
+  0, 70, 85, 105, 130, 145, 150, 155, 145, 85,
+  0, 75, 95, 125, 150, 160, 165, 165, 160, 85,
+  0, 80, 105, 145, 170, 180, 185, 185, 180, 90,
+  0, 85, 115, 155, 185, 195, 200, 200, 190, 90,
+  0, 90, 120, 160, 195, 210, 210, 210, 200, 90,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
@@ -146,7 +146,7 @@ unsigned char boostDCMax[] = {
   200, 200, 200, 180, 180, 180, 180, 80,
   200, 200, 195, 175, 175, 170, 170, 80,
   200, 200, 185, 170, 170, 160, 160, 80,
-  200, 200, 185, 170, 170, 160, 160, 80,
+  200, 200, 185, 165, 165, 155, 155, 80,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
@@ -170,17 +170,17 @@ unsigned char boostDCMin[] = {
 unsigned char n75precontrolMap[] = {
   'M', '2', 'D',
   0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 180, 180, 160, 160, 160, 160, 70,
-  0, 180, 180, 160, 160, 150, 150, 70,
-  0, 185, 180, 155, 155, 150, 150, 70,
-  0, 185, 180, 155, 150, 145, 140, 70,
+  0, 180, 175, 170, 160, 150, 150, 70,
+  0, 180, 180, 175, 160, 150, 150, 70,
+  0, 185, 180, 165, 155, 150, 145, 70,
+  0, 185, 180, 160, 150, 145, 140, 70,
+  0, 190, 180, 155, 140, 135, 135, 70,
+  0, 190, 180, 150, 140, 135, 130, 70,
   0, 195, 180, 150, 140, 135, 130, 70,
-  0, 195, 180, 140, 140, 135, 130, 70,
-  0, 195, 180, 140, 140, 135, 130, 70,
-  0, 195, 180, 145, 140, 135, 130, 70,
-  0, 195, 180, 145, 140, 130, 130, 70,
-  0, 195, 180, 145, 135, 120, 120, 70,
-  0, 195, 180, 145, 135, 120, 115, 70,
+  0, 195, 175, 150, 140, 135, 125, 70,
+  0, 195, 175, 150, 140, 130, 120, 70,
+  0, 195, 175, 150, 130, 120, 115, 70,
+  0, 195, 175, 150, 125, 115, 110, 70,
   00, 00, 00,              // lastX,lastY,lastRet
 };
 
@@ -247,7 +247,6 @@ struct controlsStruct {
   float boostCalculatedD;
 
   double pidOutput;
-  double prevPidOutput;
 
   unsigned long lastTime;
   float lastInput;
@@ -1729,8 +1728,6 @@ void controlVNT() {
 
   }
 
-  controls.prevPidOutput = controls.pidOutput;
-
   toControlVNT = controls.pidOutput + controls.n75precontrol;
 
   controls.vntPositionDC = toControlVNT;
@@ -1941,7 +1938,6 @@ unsigned long mapLoop = 0;
 
 void loop() {
 
-  static char lastPage;
   if ((millis() - mapLoop) >= MAP_DELAY) {
     readValuesMap();  // Read every loop; we're calculating an average to clean up noise.
     mapLoop = millis();
@@ -2018,7 +2014,6 @@ void loop() {
           }
         }
       }
-      lastPage = page;
     }
     displayPage(page, data);
     serialLoop = millis();
