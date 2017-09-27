@@ -119,9 +119,9 @@ unsigned char auxMap[] = {
 unsigned char boostRequest[] = {
   'M', '2', 'D',
   0xA, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_KPA, // 01 - new version
-  0, 20, 25, 30, 35, 40, 40, 40, 30, 20,
-  0, 20, 35, 45, 50, 55, 55, 55, 50, 30,
-  0, 30, 40, 50, 60, 70, 75, 75, 65, 45,
+  0, 20, 25, 25, 25, 25, 25, 25, 25, 20,
+  0, 20, 30, 30, 35, 35, 35, 35, 35, 30,
+  0, 30, 40, 50, 55, 60, 65, 70, 65, 45,
   0, 40, 50, 60, 70, 80, 90, 90, 85, 60,
   0, 50, 65, 75, 85, 100, 110, 115, 110, 70,
   0, 60, 70, 85, 105, 120, 130, 135, 130, 80,
@@ -145,15 +145,15 @@ unsigned char boostDCMax[] = {
   200, 200, 200, 180, 180, 180, 180, 80,
   200, 200, 200, 180, 180, 180, 180, 80,
   200, 200, 195, 175, 175, 170, 170, 80,
-  200, 200, 185, 170, 170, 160, 160, 80,
-  200, 200, 185, 165, 165, 155, 155, 80,
+  200, 200, 185, 170, 160, 150, 150, 80,
+  200, 200, 185, 165, 155, 145, 145, 80,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
 unsigned char boostDCMin[] = {
   'M', '2', 'D',
   0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 60, 130, 130, 120, 120, 120, 60,
+  0, 60, 60, 60, 60, 60, 60, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
   0, 130, 130, 130, 120, 120, 120, 60,
@@ -170,7 +170,7 @@ unsigned char boostDCMin[] = {
 unsigned char n75precontrolMap[] = {
   'M', '2', 'D',
   0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 180, 175, 170, 160, 150, 150, 70,
+  0, 90, 90, 170, 160, 150, 150, 70,
   0, 180, 180, 175, 160, 150, 150, 70,
   0, 185, 180, 165, 155, 150, 145, 70,
   0, 185, 180, 160, 150, 145, 140, 70,
@@ -555,9 +555,9 @@ void loadDefaults() {
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.options = 0;
-  settings.boostKp = 0;
-  settings.boostKi = 0;
-  settings.boostKd = 0;
+  settings.boostKp = 10;
+  settings.boostKi = 100;
+  settings.boostKd = 5;
 }
 
 
