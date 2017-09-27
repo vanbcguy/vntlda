@@ -20,7 +20,7 @@
 #include <PID_v1.h>
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.5";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.6";
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
