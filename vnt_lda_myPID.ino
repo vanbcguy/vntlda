@@ -20,7 +20,7 @@
 #include <PID_v1.h>
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.0.11";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.1.0";
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -169,18 +169,18 @@ unsigned char boostDCMin[] = {
 
 unsigned char n75precontrolMap[] = {
   'M', '2', 'D',
-  0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 90, 90, 120, 140, 150, 150, 70,
-  0, 180, 195, 185, 170, 150, 150, 70,
-  0, 185, 195, 175, 155, 150, 145, 70,
-  0, 185, 195, 160, 150, 145, 140, 70,
-  0, 190, 180, 155, 140, 135, 135, 70,
-  0, 190, 180, 150, 140, 135, 130, 70,
-  0, 195, 180, 150, 140, 135, 130, 70,
-  0, 195, 175, 150, 140, 135, 125, 70,
-  0, 195, 175, 145, 140, 130, 120, 70,
-  0, 195, 175, 140, 135, 120, 110, 70,
-  0, 195, 175, 140, 130, 115, 105, 70,
+  0xC, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0, 90,  90,  90,  106, 124, 136, 145, 150, 150, 121, 70,
+  0, 180, 184, 194, 190, 182, 173, 161, 150, 150, 121, 70,
+  0, 185, 188, 194, 184, 171, 159, 153, 150, 146, 118, 70,
+  0, 185, 188, 194, 176, 158, 152, 148, 145, 141, 114, 70,
+  0, 190, 187, 181, 166, 152, 143, 138, 135, 135, 111, 70,
+  0, 190, 187, 181, 164, 148, 142, 138, 135, 131, 108, 70,
+  0, 195, 191, 181, 164, 148, 142, 138, 135, 131, 108, 70,
+  0, 195, 190, 177, 161, 148, 142, 138, 134, 128, 105, 70,
+  0, 195, 190, 177, 159, 144, 141, 135, 129, 123, 102, 70,
+  0, 195, 190, 177, 156, 139, 136, 128, 119, 113, 95, 70,
+  0, 195, 190, 177, 156, 138, 132, 123, 114, 108, 92, 70,
   00, 00, 00,              // lastX,lastY,lastRet
 };
 
@@ -555,8 +555,8 @@ void loadDefaults() {
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.options = 0;
-  settings.boostKp = 7;
-  settings.boostKi = 180;
+  settings.boostKp = 45;
+  settings.boostKi = 150;
   settings.boostKd = 7;
 }
 
