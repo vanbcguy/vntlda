@@ -1,13 +1,10 @@
 /*
-  VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
+  Vanbcguy VNT LDA Controller - based on "Standalone VNT Controller" by DMN - http://dmn.kuulalaakeri.org/vnt-lda/
+  My current code: https://github.com/vanbcguy/vntlda
   - Rewritten PID loop
   - Support added for EGT probe with LDA control based on EGTs
-  - Support for EMP sensor to display EMP values (no control map yet)
   - Other various small changes
 
-  PID loop code based on https://mbed.org/users/aberk/code/PID/docs/6e12a3e5af19/classPID.html which ironically
-  is based on the Arduino PID lib that I tried earlier with poor results (now known to be due to the slllooowwww
-  Adafruit MAX31855 library chock full of delays)
 */
 
 #include <avr/pgmspace.h>
