@@ -57,6 +57,8 @@ MAX31855 temp(doPin, csPin, clPin );
 #define IDLE_MAX_RPM 1150
 #define MIN_BOOST_SPOOLED 10 // kPa
 #define PID_CUT_IN 2200 // rpm
+#define TPS_CUT_IN 18 // ~ 7%
+
 
 /* Scaling factor for your sensors - 255 divided by this should equal the full scale deflection of your sensor */
 #define MAP_SCALING_KPA 0.977
@@ -150,7 +152,7 @@ unsigned char boostDCMax[] = {
 
 unsigned char boostDCMin[] = {
   'M', '2', 'D',
-  0x8, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
+  0x9, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
   0,  53,  60,  60,  60,  60,  60,  60,  60,
   0,  114,  130,  130,  125,  120,  120,  112,  60,
   0,  114,  130,  130,  125,  120,  120,  112,  60,
@@ -1717,7 +1719,7 @@ void controlVNT() {
     }
 
   }
-  else if (controls.mapCorrected <= MIN_BOOST_SPOOLED || controls.rpmActual < PID_CUT_IN) {
+  else if (controls.mapCorrected <= MIN_BOOST_SPOOLED || controls.rpmActual < PID_CUT_IN || controls.tpsInput < TPS_CUT_IN ) {
     // If the turbo hasn't spooled up yet we're going to end up winding up the control loop; the precontrol map
     // should be more than sufficient to get things spinning
     
