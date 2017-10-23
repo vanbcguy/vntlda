@@ -1688,6 +1688,16 @@ void controlVNT() {
   minControl = controls.vntMinDc - controls.n75precontrol;  // this will be a negative number
   maxControl = controls.vntMaxDc - controls.n75precontrol;  // this will be a positive number
 
+  if ( minControl > 0 ) {
+    // Our MinDC map is higher than our precontrol map; oops
+    minControl = 0;
+  }
+
+  if ( maxControl < 0 ) {
+    // Our MaxDC map is lower than our precontrol map; oops
+    maxControl = 0;
+  }
+
   vntPid.SetOutputLimits(minControl, maxControl);
   vntPid.SetTunings(Kp, Ki, Kd);
 
@@ -1717,12 +1727,21 @@ void controlVNT() {
     vntPid.SetMode(MANUAL);
   }
   else {
-    // Normal running mode
-    controls.mode = 2;
 
     vntPid.SetMode(AUTOMATIC);
 
     vntPid.Compute();
+
+    if ( controls.pidOutput == minControl ) {
+      // We are at minimum
+      controls.mode = 4;
+    } else if ( controls.pidOutput == maxControl ) {
+      // We are at maximum
+      controls.mode = 3;
+    } else {
+      // Normal in-range running
+      controls.mode = 2;
+    }
 
   }
 
