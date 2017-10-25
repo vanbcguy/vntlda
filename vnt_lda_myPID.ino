@@ -17,7 +17,7 @@
 #include <PID_v1.h>
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.1.0";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.1.1";
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -570,24 +570,6 @@ unsigned char mapValues(int raw, int mapMin, int mapMax) {
   return map(raw, mapMin, mapMax, 0, 255);
 }
 
-unsigned char empValues(int raw, int empMin, int empMax) {
-  if (raw < empMin)
-    return 0;
-  if (raw >= empMax)
-    return 0xff;
-
-  return map(raw, empMin, empMax, 0, 255);
-}
-
-unsigned char egtValues(int raw, int egtMin, int egtMax) {
-  if (raw < egtMin)
-    return 0;
-  if (raw >= egtMax)
-    return 0xff;
-
-  return map(raw, egtMin, egtMax, 0, 255);
-}
-
 unsigned char mapValuesSqueeze(int raw, int mapMin, int mapMax) {
   return map(raw, 0, 255, mapMin, mapMax);
 }
@@ -615,7 +597,6 @@ unsigned char mapLookUp(unsigned char *mapData, unsigned char x, unsigned char y
 
   unsigned char p1 = *(mapData + ofs + (yPos * tableSizeX) + xPos);
   unsigned char p2 = *(mapData + ofs + (yPos * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
-  ;
   unsigned char p3 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + xPos);
   unsigned char p4 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
 
@@ -1232,15 +1213,15 @@ void pageDataLogger(char key) {
   Serial.print(F(","));
   Serial.print(controls.n75precontrol, DEC);
   Serial.print(F(","));
+  Serial.print(controls.vntMinDc, DEC);
+  Serial.print(F(","));
+  Serial.print(controls.vntMaxDc, DEC);
+  Serial.print(F(","));
+  Serial.print(controls.rpmCorrected, DEC);
+  Serial.print(F(","));
   Serial.print(controls.mode, DEC);
   Serial.print(F(","));
   Serial.print(controls.auxOutput, DEC);
-  Serial.print(F(","));
-  Serial.print(execTimeRead, DEC);
-  Serial.print(F(","));
-  Serial.print(execTimeAct, DEC);
-  Serial.print(F(","));
-  Serial.print(execTimeLcd, DEC);
   Serial.print(F(","));
   Serial.print(millis() / 10, DEC);
   Serial.println();
