@@ -597,8 +597,8 @@ unsigned char mapLookUp(unsigned char *mapData, unsigned char x, unsigned char y
 
   unsigned char p1 = *(mapData + ofs + (yPos * tableSizeX) + xPos);
   unsigned char p2 = *(mapData + ofs + (yPos * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
-  unsigned char p3 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + xPos);
-  unsigned char p4 = *(mapData + ofs + ((((yPos + 1) >= tableSizeX) ? yPos : yPos + 1) * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
+  unsigned char p3 = *(mapData + ofs + ((((yPos + 1) >= tableSizeY) ? yPos : yPos + 1) * tableSizeX) + xPos);
+  unsigned char p4 = *(mapData + ofs + ((((yPos + 1) >= tableSizeY) ? yPos : yPos + 1) * tableSizeX) + (((xPos + 1) >= tableSizeX) ? xPos : xPos + 1));
 
   unsigned char ret;
   if (isInterpolated == 'D') {
