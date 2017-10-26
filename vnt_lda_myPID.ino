@@ -17,7 +17,7 @@
 #include <PID_v1.h>
 
 // Also used in NVRAM data store magic header
-const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.1.1";
+const unsigned char versionString[] PROGMEM  = "DMN-Vanbcguy Boost Ctrl v3.2.1";
 
 #define PIN_BUTTON A5
 #define PIN_HEARTBEAT 13
@@ -66,7 +66,7 @@ MAX31855 temp(doPin, csPin, clPin );
 
 /* Change this if you need to adjust the scaling of the PID outputs - ie if you need finer control at smaller fractional numbers increase this
   or if you need to have large multipliers then decrease this */
-#define PIDControlRatio 100
+#define PIDControlRatio 300
 
 /* The resolution we use to calculate RPM - we are only going to calculate RPM ever 'n' number of teeth that pass by; otherwise we are going to have
   a jittery value.  Divide this value by the 'Teeth per Rotation' setting to know how many revolutions before we caculate RPM. */
@@ -123,13 +123,13 @@ unsigned char boostRequest[] = {
   0, 20, 30, 30, 35, 35, 35, 35, 35, 30,
   0, 30, 40, 50, 55, 60, 65, 70, 65, 45,
   0, 40, 50, 60, 70, 80, 90, 90, 85, 60,
-  0, 50, 65, 75, 85, 100, 110, 115, 110, 70,
-  0, 60, 70, 85, 105, 120, 130, 135, 125, 80,
-  0, 70, 85, 105, 130, 150, 150, 155, 135, 85,
-  0, 75, 95, 125, 150, 165, 165, 165, 145, 85,
-  0, 80, 105, 145, 170, 185, 185, 185, 155, 90,
-  0, 85, 115, 155, 175, 195, 195, 195, 165, 90,
-  0, 90, 120, 160, 205, 205, 205, 205, 175, 90,
+  0, 50, 65, 75, 85, 85, 115, 115, 115, 70,
+  0, 60, 70, 85, 85, 85, 115, 115, 115, 80,
+  0, 70, 85, 95, 100, 100, 120, 120, 120, 85,
+  0, 75, 95, 115, 120, 135, 135, 135, 135, 85,
+  0, 80, 105, 125, 140, 140, 140, 140, 140, 90,
+  0, 85, 115, 145, 175, 195, 195, 195, 195, 90,
+  0, 90, 120, 160, 205, 205, 205, 205, 205, 90,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
@@ -146,7 +146,7 @@ unsigned char boostDCMax[] = {
   0, 200, 200, 180, 160, 160, 160, 70,
   0, 200, 195, 175, 160, 160, 160, 70,
   0, 200, 185, 165, 155, 150, 140, 70,
-  0, 200, 185, 160, 142, 137, 127, 70,
+  0, 200, 185, 170, 142, 137, 127, 70,
   00, 00, 00,                // lastX,lastY,lastRet
 };
 
@@ -170,17 +170,17 @@ unsigned char boostDCMin[] = {
 unsigned char n75precontrolMap[] = {
   'M', '2', 'D',
   0xC, 0xB, MAP_AXIS_RPM, MAP_AXIS_TPS, MAP_AXIS_DUTY_CYCLE,
-  0, 90, 90, 90, 106, 120, 120, 120, 120, 120, 95, 70,
-  0, 200, 200, 200, 175, 160, 153, 147, 140, 120, 95, 70,
-  0, 200, 200, 200, 170, 145, 140, 140, 140, 120, 95, 70,
+  0, 90, 90, 120, 120, 120, 120, 120, 120, 120, 95, 70,
+  0, 200, 200, 200, 175, 160, 153, 147, 140, 135, 95, 70,
+  0, 200, 200, 200, 170, 145, 140, 135, 135, 130, 95, 70,
   0, 200, 200, 200, 170, 145, 135, 130, 130, 125, 95, 70,
-  0, 200, 200, 200, 165, 145, 130, 125, 120, 120, 95, 70,
-  0, 200, 200, 200, 165, 145, 130, 125, 120, 120, 95, 70,
-  0, 200, 200, 200, 165, 145, 130, 125, 120, 120, 95, 70,
-  0, 200, 200, 200, 165, 148, 130, 125, 120, 115, 95, 70,
-  0, 200, 200, 200, 165, 150, 130, 125, 120, 115, 95, 70,
-  0, 200, 200, 200, 170, 155, 130, 125, 120, 115, 95, 70,
-  0, 200, 200, 200, 180, 155, 130, 125, 120, 115, 95, 70,
+  0, 200, 200, 200, 165, 140, 125, 120, 120, 120, 95, 70,
+  0, 200, 200, 200, 165, 140, 125, 120, 120, 120, 95, 70,
+  0, 200, 200, 195, 165, 140, 125, 120, 120, 120, 95, 70,
+  0, 200, 200, 195, 165, 140, 125, 120, 120, 115, 95, 70,
+  0, 200, 200, 195, 165, 145, 125, 120, 120, 115, 95, 70,
+  0, 200, 200, 200, 170, 150, 130, 125, 120, 115, 95, 70,
+  0, 200, 200, 200, 180, 155, 130, 123, 117, 115, 95, 70,
   00, 00, 00,              // lastX,lastY,lastRet
 };
 
@@ -555,9 +555,9 @@ void loadDefaults() {
   settings.rpmTeethsPerRotation = 4;
   settings.rpmMax = 6000;
   settings.options = 0;
-  settings.boostKp = 45;
-  settings.boostKi = 150;
-  settings.boostKd = 7;
+  settings.boostKp = 60;
+  settings.boostKi = 15;
+  settings.boostKd = 10;
 }
 
 
