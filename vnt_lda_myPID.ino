@@ -1681,7 +1681,6 @@ void controlVNT() {
   }
 
   vntPid.SetOutputLimits(minControl, maxControl);
-  vntPid.SetTunings(Kp, Ki, Kd);
 
   if ((controls.idling)) {
     // If we are at idle then we don't want any boost regardless of map
@@ -1703,14 +1702,16 @@ void controlVNT() {
     // If the turbo hasn't spooled up yet we're going to end up winding up the control loop; the precontrol map
     // should be more than sufficient to get things spinning
     
-    controls.mode = 1;                                // We haven't spooled, don't start PID yet
-    controls.pidOutput = 0;
+    controls.mode = 1;                                // We haven't spooled, don't integrate yet
 
-    vntPid.SetMode(MANUAL);
+    vntPid.SetMode(AUTOMATIC);
+    vntPid.SetTunings(Kp, 0.0, Kd);
+
   }
   else {
 
     vntPid.SetMode(AUTOMATIC);
+    vntPid.SetTunings(Kp, Ki, Kd);
 
     vntPid.Compute();
 
