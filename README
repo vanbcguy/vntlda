@@ -32,7 +32,7 @@ The project I based this off of was designed to work with a Honeywell GT101DC.  
 Suggested Boost Control Solenoids
 =================================
 
-I used the readily avaiable GM 3-port boost control solenoids - AC Delco part number 214-474.  They seem to work fine though they are a bit noisy - take care where you mount them (ie don't screw them to the firewall as the noise will drive you nuts).  The software is currently configured to work with sensors that expect about a 60 Hz PWM signal
+I initially used the readily avaiable GM 3-port boost control solenoids - AC Delco part number 214-474.  They seem to work fine though they are a bit noisy - take care where you mount them (ie don't screw them to the firewall as the noise will drive you nuts).  I have since moved to a VW-style "N75" valve from a Mk4 TDI; these valves are much quieter.
 
 
 Logging
